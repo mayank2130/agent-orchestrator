@@ -52,9 +52,13 @@ export async function waitForPortAndOpen(
   while (!signal.aborted && Date.now() - start < timeoutMs) {
     const free = await isPortAvailable(port);
     if (!free) {
-      const cmd =
-        process.platform === "win32" ? "start" : process.platform === "linux" ? "xdg-open" : "open";
-      const browser = spawn(cmd, [url], { stdio: "ignore" });
+      // Windows: `start` is a cmd.exe builtin (no start.exe), so must run via shell.
+      // The empty "" arg is the window title required by `start` before the URL.
+      const [cmd, args]: [string, string[]] =
+        process.platform === "win32"
+          ? ["cmd.exe", ["/c", "start", "", url]]
+          : [process.platform === "linux" ? "xdg-open" : "open", [url]];
+      const browser = spawn(cmd, args, { stdio: "ignore" });
       browser.on("error", () => {});
       return;
     }
