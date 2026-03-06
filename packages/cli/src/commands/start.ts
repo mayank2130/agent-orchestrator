@@ -43,6 +43,14 @@ import { preflight } from "../lib/preflight.js";
 
 const DEFAULT_PORT = 3000;
 
+function normalizeOrchestratorSessionStrategy(
+  strategy: ProjectConfig["orchestratorSessionStrategy"] | undefined,
+): "reuse" | "delete" | "ignore" {
+  if (strategy === "kill-previous" || strategy === "delete-new") return "delete";
+  if (strategy === "ignore-new") return "ignore";
+  return strategy ?? "delete";
+}
+
 // =============================================================================
 // HELPERS
 // =============================================================================
@@ -259,7 +267,9 @@ async function runStartup(
 ): Promise<void> {
   const sessionId = `${project.sessionPrefix}-orchestrator`;
   let port = config.port ?? DEFAULT_PORT;
-  const orchestratorSessionStrategy = project.orchestratorSessionStrategy ?? "delete";
+  const orchestratorSessionStrategy = normalizeOrchestratorSessionStrategy(
+    project.orchestratorSessionStrategy,
+  );
 
   console.log(chalk.bold(`\nStarting orchestrator for ${chalk.cyan(project.name)}\n`));
 
