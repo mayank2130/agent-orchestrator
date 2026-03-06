@@ -207,28 +207,14 @@ export function SessionDetail({
 
   const terminalHeight = isOrchestrator ? "calc(100vh - 240px)" : "max(440px, calc(100vh - 440px))";
   const isOpenCodeSession = session.metadata["agent"] === "opencode";
-  const [remapState, setRemapState] = useState<"idle" | "running" | "ok" | "error">("idle");
-
-  async function handleForceRemap() {
-    if (remapState === "running") return;
-    setRemapState("running");
-    try {
-      const res = await fetch(`/api/sessions/${encodeURIComponent(session.id)}/remap`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ force: true }),
-      });
-      if (!res.ok) {
-        setRemapState("error");
-        return;
-      }
-      setRemapState("ok");
-      setTimeout(() => setRemapState("idle"), 3000);
-    } catch {
-      setRemapState("error");
-      setTimeout(() => setRemapState("idle"), 3000);
-    }
-  }
+  const opencodeSessionId =
+    typeof session.metadata["opencodeSessionId"] === "string" &&
+    session.metadata["opencodeSessionId"].length > 0
+      ? session.metadata["opencodeSessionId"]
+      : undefined;
+  const reloadCommand = opencodeSessionId
+    ? `/exit\nopencode --session ${opencodeSessionId}\n`
+    : undefined;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-base)]">
@@ -265,21 +251,6 @@ export function SessionDetail({
             >
               orchestrator
             </span>
-          )}
-          {isOpenCodeSession && (
-            <button
-              onClick={handleForceRemap}
-              disabled={remapState === "running"}
-              className="ml-auto rounded border border-[var(--color-border-subtle)] bg-[rgba(255,255,255,0.04)] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-accent)] hover:text-[var(--color-accent)] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {remapState === "running"
-                ? "Remapping..."
-                : remapState === "ok"
-                  ? "Remapped"
-                  : remapState === "error"
-                    ? "Remap Failed"
-                    : "Force Remap"}
-            </button>
           )}
         </div>
       </nav>
@@ -424,6 +395,7 @@ export function SessionDetail({
             startFullscreen={startFullscreen}
             variant={terminalVariant}
             height={terminalHeight}
+            reloadCommand={isOpenCodeSession ? reloadCommand : undefined}
           />
         </div>
       </div>
