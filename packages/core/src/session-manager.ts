@@ -148,7 +148,12 @@ async function discoverOpenCodeSessionIdsByTitle(
   const title = `AO:${sessionId}`;
   return sessions
     .filter((entry) => entry.title === title)
-    .sort((a, b) => (b.updatedAt ?? -Infinity) - (a.updatedAt ?? -Infinity))
+    .sort((a, b) => {
+      const ta = a.updatedAt ?? -Infinity;
+      const tb = b.updatedAt ?? -Infinity;
+      if (ta === tb) return 0;
+      return tb - ta;
+    })
     .map((entry) => entry.id);
 }
 

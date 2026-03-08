@@ -56,7 +56,12 @@ process.stdin.on('data', c => input += c).on('end', () => {
   };
   const matches = rows
     .filter(r => r && r.title === title && typeof r.id === 'string' && isValidId(r.id))
-    .sort((a, b) => timestamp(b.updated) - timestamp(a.updated));
+    .sort((a, b) => {
+      const ta = timestamp(a.updated);
+      const tb = timestamp(b.updated);
+      if (ta === tb) return 0;
+      return tb - ta;
+    });
   if (matches.length === 0) process.exit(1);
   process.stdout.write(matches[0].id);
 });
