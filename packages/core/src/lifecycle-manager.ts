@@ -437,10 +437,7 @@ export function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleMan
     return reactionConfig ? (reactionConfig as ReactionConfig) : null;
   }
 
-  function updateSessionMetadata(
-    session: Session,
-    updates: Partial<Record<string, string>>,
-  ): void {
+  function updateSessionMetadata(session: Session, updates: Partial<Record<string, string>>): void {
     const project = config.projects[session.projectId];
     if (!project) return;
 
@@ -490,11 +487,17 @@ export function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleMan
     const ciReactionKey = "ci-failed";
     if (newStatus !== "ci_failed" || !session.pr) {
       clearReactionTracker(session.id, ciReactionKey);
-      updateSessionMetadata(session, {
-        lastCiFailureFingerprint: "",
-        lastCiFailureDispatchHash: "",
-        lastCiFailureDispatchAt: "",
-      });
+      if (
+        session.metadata["lastCiFailureFingerprint"] !== undefined ||
+        session.metadata["lastCiFailureDispatchHash"] !== undefined ||
+        session.metadata["lastCiFailureDispatchAt"] !== undefined
+      ) {
+        updateSessionMetadata(session, {
+          lastCiFailureFingerprint: "",
+          lastCiFailureDispatchHash: "",
+          lastCiFailureDispatchAt: "",
+        });
+      }
       return;
     }
 
@@ -523,7 +526,9 @@ export function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleMan
     const lastDispatchHash = session.metadata["lastCiFailureDispatchHash"] ?? "";
 
     if (ciFingerprint !== lastFingerprint) {
-      clearReactionTracker(session.id, ciReactionKey);
+      if (transitionReaction?.key !== ciReactionKey) {
+        clearReactionTracker(session.id, ciReactionKey);
+      }
       updateSessionMetadata(session, {
         lastCiFailureFingerprint: ciFingerprint,
       });
@@ -677,12 +682,9 @@ export function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleMan
       );
     }
     if (automatedComments !== null) {
-      const automatedFingerprint = makeFingerprint(
-        automatedComments.map((comment) => comment.id),
-      );
+      const automatedFingerprint = makeFingerprint(automatedComments.map((comment) => comment.id));
       const lastAutomatedFingerprint = session.metadata["lastAutomatedReviewFingerprint"] ?? "";
-      const lastAutomatedDispatchHash =
-        session.metadata["lastAutomatedReviewDispatchHash"] ?? "";
+      const lastAutomatedDispatchHash = session.metadata["lastAutomatedReviewDispatchHash"] ?? "";
 
       if (automatedFingerprint !== lastAutomatedFingerprint) {
         clearReactionTracker(session.id, automatedReactionKey);
