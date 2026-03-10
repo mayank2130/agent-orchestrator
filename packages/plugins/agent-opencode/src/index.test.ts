@@ -518,6 +518,7 @@ describe("getActivityState", () => {
         });
       }
       if (cmd === "opencode") return Promise.resolve({ stdout: "not json", stderr: "" });
+      return Promise.reject(new Error("unexpected"));
     });
 
     const state = await agent.getActivityState(

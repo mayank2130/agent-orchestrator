@@ -2722,7 +2722,17 @@ describe("spawnOrchestrator", () => {
     expect(meta?.["opencodeSessionId"]).toBe("ses_existing");
   });
 
-  it.skip("reuses archived OpenCode mapping for orchestrator when active metadata has no mapping", async () => {
+  it("reuses archived OpenCode mapping for orchestrator when active metadata has no mapping", async () => {
+    const deleteLogPath = join(tmpDir, "opencode-delete-orchestrator-reuse-archived.log");
+    const mockBin = installMockOpencode(
+      JSON.stringify([
+        null,
+        { id: "ses_existing", title: "AO:app-orchestrator", updated: 1_772_777_000_000 },
+      ]),
+      deleteLogPath,
+    );
+    process.env.PATH = `${mockBin}:${originalPath ?? ""}`;
+
     const opencodeAgent: Agent = {
       ...mockAgent,
       name: "opencode",
