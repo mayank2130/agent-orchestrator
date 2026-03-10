@@ -70,8 +70,8 @@ import {
   GLOBAL_PAUSE_SOURCE_KEY,
   parsePauseUntil,
 } from "./global-pause.js";
-import { parsePrFromUrl } from "./utils/pr.js";
-import { safeJsonParse, validateStatus } from "./utils/validation.js";
+import { sessionFromMetadata } from "./utils/session-from-metadata.js";
+import { safeJsonParse } from "./utils/validation.js";
 
 const execFileAsync = promisify(execFile);
 const OPENCODE_DISCOVERY_TIMEOUT_MS = 2_000;
@@ -218,51 +218,10 @@ function metadataToSession(
   createdAt?: Date,
   modifiedAt?: Date,
 ): Session {
-  return {
-    id: sessionId,
-    projectId: meta["project"] ?? "",
-    status: validateStatus(meta["status"]),
-    activity: null,
-    branch: meta["branch"] || null,
-    issueId: meta["issue"] || null,
-    pr: meta["pr"]
-      ? (() => {
-          const parsed = parsePrFromUrl(meta["pr"]);
-          if (parsed) {
-            return {
-              number: parsed.number,
-              url: meta["pr"],
-              title: "",
-              owner: parsed.owner,
-              repo: parsed.repo,
-              branch: meta["branch"] ?? "",
-              baseBranch: "",
-              isDraft: false,
-            };
-          } else {
-            return {
-              number: 0,
-              url: meta["pr"],
-              title: "",
-              owner: "",
-              repo: "",
-              branch: meta["branch"] ?? "",
-              baseBranch: "",
-              isDraft: false,
-            };
-          }
-        })()
-      : null,
-    workspacePath: meta["worktree"] || null,
-    runtimeHandle: meta["runtimeHandle"]
-      ? safeJsonParse<RuntimeHandle>(meta["runtimeHandle"])
-      : null,
-    agentInfo: meta["summary"] ? { summary: meta["summary"], agentSessionId: null } : null,
-    createdAt: meta["createdAt"] ? new Date(meta["createdAt"]) : (createdAt ?? new Date()),
+  return sessionFromMetadata(sessionId, meta, {
+    createdAt,
     lastActivityAt: modifiedAt ?? new Date(),
-    restoredAt: meta["restoredAt"] ? new Date(meta["restoredAt"]) : undefined,
-    metadata: meta,
-  };
+  });
 }
 
 export interface SessionManagerDeps {

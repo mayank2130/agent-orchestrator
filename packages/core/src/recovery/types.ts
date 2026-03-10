@@ -101,6 +101,8 @@ export interface RecoveryResult {
   /** Whether manual intervention is required */
   requiresManualIntervention?: boolean;
 
+  reason?: string;
+
   /** Error message if operation failed */
   error?: string;
 }

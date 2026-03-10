@@ -107,7 +107,7 @@ export async function runRecovery(options: RecoveryManagerOptions): Promise<Reco
       recoveryConfig.logPath,
       createLogEntry(assessment.sessionId, logAction, {
         previousStatus: assessment.metadataStatus,
-        reason: assessment.reason,
+        reason: result.reason ?? assessment.reason,
         error: result.error,
       }),
     );
@@ -182,7 +182,7 @@ export async function recoverSessionById(
     recoveryConfig.logPath,
     createLogEntry(sessionId, logAction, {
       previousStatus: assessment.metadataStatus,
-      reason: assessment.reason,
+      reason: result.reason ?? assessment.reason,
       error: result.error,
     }),
   );
