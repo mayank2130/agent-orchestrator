@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
@@ -161,5 +161,19 @@ describe("feedback report store", () => {
         evidence: [],
       }),
     ).toThrow();
+  });
+
+  it("skips corrupt report files and returns valid ones", () => {
+    const store = new FeedbackReportStore(reportsDir);
+
+    const saved = store.persist(FEEDBACK_TOOL_NAMES.BUG_REPORT, validPayload);
+    writeFileSync(
+      join(reportsDir, "report_2026-03-10T00-00-00-000Z_bad.kv"),
+      "version=1\nid=report_2026-03-10T00-00-00-000Z_bad\ntool=bug_report\n",
+      "utf-8",
+    );
+
+    const records = store.list();
+    expect(records).toEqual([saved]);
   });
 });

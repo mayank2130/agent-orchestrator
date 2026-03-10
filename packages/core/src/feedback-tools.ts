@@ -10,6 +10,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { z } from "zod";
+import { parseKeyValueContent } from "./key-value.js";
 
 export const FEEDBACK_TOOL_NAMES = {
   BUG_REPORT: "bug_report",
@@ -118,22 +119,8 @@ function serializeReport(report: PersistedFeedbackReport): string {
   return `${lines.join("\n")}\n`;
 }
 
-function parseMetadataFile(content: string): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const line of content.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-    const eqIndex = trimmed.indexOf("=");
-    if (eqIndex === -1) continue;
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim();
-    if (key) result[key] = value;
-  }
-  return result;
-}
-
 function parseReportFile(content: string): PersistedFeedbackReport {
-  const raw = parseMetadataFile(content);
+  const raw = parseKeyValueContent(content);
 
   const evidence = Object.entries(raw)
     .filter(([key]) => key.startsWith("evidence."))
@@ -217,9 +204,13 @@ export class FeedbackReportStore {
         continue;
       }
 
-      const content = readFileSync(reportPath, "utf-8");
-      const parsed = parseReportFile(content);
-      reports.push(parsed);
+      try {
+        const content = readFileSync(reportPath, "utf-8");
+        const parsed = parseReportFile(content);
+        reports.push(parsed);
+      } catch {
+        continue;
+      }
     }
 
     return reports.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
