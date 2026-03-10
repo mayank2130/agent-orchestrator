@@ -1,6 +1,7 @@
-import { ACTIVITY_STATE, getSessionsDir } from "@composio/ao-core";
+import { ACTIVITY_STATE } from "@composio/ao-core";
 import { NextResponse } from "next/server";
 import { getServices, getSCM } from "@/lib/services";
+import { resolveSessionsDir } from "@/lib/session-metadata";
 import {
   sessionToDashboard,
   resolveProject,
@@ -8,20 +9,6 @@ import {
   enrichSessionsMetadata,
   computeStats,
 } from "@/lib/serialize";
-
-function resolveSessionsDir(
-  configPath: string,
-  projectPath: string,
-  metadata: Record<string, string>,
-): string | null {
-  const metadataDir = metadata["AO_DATA_DIR"] ?? metadata["aoDataDir"] ?? metadata["sessionsDir"];
-  if (metadataDir) return metadataDir;
-  try {
-    return getSessionsDir(configPath, projectPath);
-  } catch {
-    return null;
-  }
-}
 
 /** GET /api/sessions — List all sessions with full state
  * Query params:

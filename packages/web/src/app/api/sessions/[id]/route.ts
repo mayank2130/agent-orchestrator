@@ -1,26 +1,12 @@
-import { getSessionsDir } from "@composio/ao-core";
 import { NextResponse, type NextRequest } from "next/server";
 import { getServices, getSCM } from "@/lib/services";
+import { resolveSessionsDir } from "@/lib/session-metadata";
 import {
   sessionToDashboard,
   resolveProject,
   enrichSessionPR,
   enrichSessionsMetadata,
 } from "@/lib/serialize";
-
-function resolveSessionsDir(
-  configPath: string,
-  projectPath: string,
-  metadata: Record<string, string>,
-): string | null {
-  const metadataDir = metadata["AO_DATA_DIR"] ?? metadata["aoDataDir"] ?? metadata["sessionsDir"];
-  if (metadataDir) return metadataDir;
-  try {
-    return getSessionsDir(configPath, projectPath);
-  } catch {
-    return null;
-  }
-}
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

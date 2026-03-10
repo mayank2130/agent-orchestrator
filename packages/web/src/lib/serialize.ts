@@ -7,6 +7,7 @@
 
 import {
   SESSION_STATUS,
+  TERMINAL_STATUSES,
   updateMetadata,
   type Session,
   type Agent,
@@ -18,7 +19,12 @@ import {
   type OrchestratorConfig,
   type PluginRegistry,
 } from "@composio/ao-core";
-import type { DashboardSession, DashboardPR, DashboardStats } from "./types.js";
+import {
+  isPRRateLimited,
+  type DashboardSession,
+  type DashboardPR,
+  type DashboardStats,
+} from "./types";
 import {
   TTLCache,
   prCache,
@@ -277,15 +283,14 @@ export async function enrichSessionPR(
   return true;
 }
 
-function isPRRateLimited(pr: DashboardPR): boolean {
-  return pr.mergeability.blockers.includes("API rate limited or unavailable");
-}
-
 function deriveSessionStatusTransition(
   currentStatus: SessionStatus,
   pr: DashboardPR,
   rateLimited: boolean,
 ): SessionStatus | null {
+  // Never revive terminal sessions via dashboard polling.
+  if (TERMINAL_STATUSES.has(currentStatus)) return null;
+
   if (pr.state === "merged") return SESSION_STATUS.MERGED;
   if (pr.state === "closed") return SESSION_STATUS.DONE;
 
