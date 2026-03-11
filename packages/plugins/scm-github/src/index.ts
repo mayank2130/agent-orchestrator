@@ -268,10 +268,11 @@ function parseGitHubRepository(payload: Record<string, unknown>) {
   if (!repository || typeof repository !== "object") return undefined;
   const repo = repository as Record<string, unknown>;
   const ownerValue = repo["owner"];
-  const owner =
+  const ownerLogin =
     ownerValue && typeof ownerValue === "object"
-      ? ((ownerValue as Record<string, unknown>)["login"] as string | undefined)
+      ? (ownerValue as Record<string, unknown>)["login"]
       : undefined;
+  const owner = typeof ownerLogin === "string" ? ownerLogin : undefined;
   const name = typeof repo["name"] === "string" ? repo["name"] : undefined;
   if (!owner || !name) return undefined;
   return { owner, name };

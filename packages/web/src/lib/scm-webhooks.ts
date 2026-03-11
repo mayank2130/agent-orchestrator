@@ -15,7 +15,7 @@ export interface WebhookProjectMatch {
   scm: SCM;
 }
 
-export function requestHeadersToRecord(headers: Headers): Record<string, string> {
+function requestHeadersToRecord(headers: Headers): Record<string, string> {
   const record: Record<string, string> = {};
   headers.forEach((value, key) => {
     record[key] = value;
@@ -23,7 +23,7 @@ export function requestHeadersToRecord(headers: Headers): Record<string, string>
   return record;
 }
 
-export function getProjectWebhookPath(project: ProjectConfig): string | null {
+function getProjectWebhookPath(project: ProjectConfig): string | null {
   if (!project.scm?.webhook || project.scm.webhook.enabled === false) return null;
   return project.scm.webhook.path ?? `/api/webhooks/${project.scm.plugin}`;
 }

@@ -190,6 +190,27 @@ describe("scm-github plugin", () => {
       );
     });
 
+    it("omits repository when owner.login is not a string", async () => {
+      const event = await scm.parseWebhook?.(
+        makeWebhookRequest({
+          body: JSON.stringify({
+            action: "opened",
+            repository: { owner: { login: 123 }, name: "repo" },
+            pull_request: {
+              number: 42,
+              updated_at: "2026-03-10T12:00:00Z",
+              head: { ref: "feat/my-feature", sha: "abc123" },
+            },
+          }),
+        }),
+        project,
+      );
+
+      expect(event).toEqual(
+        expect.objectContaining({ kind: "pull_request", repository: undefined }),
+      );
+    });
+
     it("parses issue_comment events on pull requests as comment events", async () => {
       const event = await scm.parseWebhook?.(
         makeWebhookRequest({
