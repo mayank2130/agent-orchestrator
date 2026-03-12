@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -27,6 +28,8 @@ const COMMAND_TIMEOUT_MS = 30_000;
 const TMUX_COMMAND_TIMEOUT_MS = 5_000;
 const SHELL_READY_DELAY_MS = 800;
 const SAFE_SESSION_ID = /^[a-zA-Z0-9_-]+$/;
+const LEASE_LOCK_RETRY_MS = 100;
+const LEASE_LOCK_STALE_MS = 30_000;
 
 interface DockerRuntimeOptions {
   image: string;
@@ -39,6 +42,7 @@ interface DockerRuntimeOptions {
   user: string | null;
   extraMounts: string[];
   environment: Record<string, string>;
+  commandTimeoutMs: number;
 }
 
 interface LeaseRecord {
@@ -58,6 +62,15 @@ function assertValidSessionId(id: string): void {
   if (!SAFE_SESSION_ID.test(id)) {
     throw new Error(`Invalid session ID "${id}": must match ${SAFE_SESSION_ID}`);
   }
+}
+
+function parsePositiveInteger(input: unknown): number | null {
+  if (typeof input === "number" && Number.isInteger(input) && input > 0) return input;
+  if (typeof input === "string") {
+    const parsed = Number.parseInt(input, 10);
+    if (Number.isInteger(parsed) && parsed > 0) return parsed;
+  }
+  return null;
 }
 
 async function run(command: string, args: string[], timeout = COMMAND_TIMEOUT_MS): Promise<string> {
@@ -142,6 +155,7 @@ function normalizeOptions(config?: Record<string, unknown>): DockerRuntimeOption
     user,
     extraMounts: parseStringArray(config?.["extraMounts"]),
     environment: parseStringRecord(config?.["environment"]),
+    commandTimeoutMs: parsePositiveInteger(config?.["commandTimeoutMs"]) ?? COMMAND_TIMEOUT_MS,
   };
 }
 
@@ -225,7 +239,12 @@ async function allocateHostPorts(
     JSON.stringify(existing.containerPorts) === JSON.stringify(containerPorts) &&
     existing.hostPorts.length === containerPorts.length
   ) {
-    return existing;
+    const availability = await Promise.all(
+      existing.hostPorts.map((port) => isHostPortAvailable(port)),
+    );
+    if (availability.every(Boolean)) {
+      return existing;
+    }
   }
 
   const leaseDir = getLeaseDir(projectBaseDir);
@@ -259,6 +278,62 @@ async function allocateHostPorts(
   }
 
   throw new Error("Failed to allocate deterministic host ports for docker runtime");
+}
+
+function tryAcquireLeaseLock(lockPath: string): boolean {
+  try {
+    mkdirSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function releaseLeaseLock(lockPath: string): void {
+  try {
+    rmSync(lockPath, { recursive: true, force: true });
+  } catch {
+    void 0;
+  }
+}
+
+function clearStaleLeaseLock(lockPath: string): void {
+  try {
+    const ageMs = Date.now() - statSync(lockPath).mtimeMs;
+    if (ageMs > LEASE_LOCK_STALE_MS) {
+      releaseLeaseLock(lockPath);
+    }
+  } catch {
+    void 0;
+  }
+}
+
+async function allocateHostPortsWithLock(
+  projectBaseDir: string,
+  sessionName: string,
+  containerPorts: number[],
+  rangeStart: number,
+  rangeSize: number,
+): Promise<LeaseRecord | null> {
+  if (containerPorts.length === 0) return null;
+
+  const lockPath = `${getLeasePath(projectBaseDir, sessionName)}.lock`;
+  while (!tryAcquireLeaseLock(lockPath)) {
+    clearStaleLeaseLock(lockPath);
+    await sleep(LEASE_LOCK_RETRY_MS);
+  }
+
+  try {
+    return await allocateHostPorts(
+      projectBaseDir,
+      sessionName,
+      containerPorts,
+      rangeStart,
+      rangeSize,
+    );
+  } finally {
+    releaseLeaseLock(lockPath);
+  }
 }
 
 function buildDashboardMetadata(lease: LeaseRecord | null): Record<string, string> {
@@ -453,6 +528,8 @@ async function safeComposeDown(composeProject: string, composeFile?: string): Pr
   }
 }
 
+type ComposeProbeResult = boolean | "unknown";
+
 function removeLease(leaseFile: string | undefined): void {
   if (!leaseFile || !existsSync(leaseFile)) return;
   try {
@@ -474,20 +551,25 @@ function removeComposeArtifacts(composeFile: string | undefined): void {
 async function isComposeServiceRunning(
   composeProject: string,
   serviceName: string,
-): Promise<boolean> {
+  commandTimeoutMs: number,
+): Promise<ComposeProbeResult> {
   try {
-    const output = await docker([
-      "ps",
-      "--filter",
-      `label=com.docker.compose.project=${composeProject}`,
-      "--filter",
-      `label=com.docker.compose.service=${serviceName}`,
-      "--format",
-      "{{.ID}}",
-    ]);
+    const output = await run(
+      "docker",
+      [
+        "ps",
+        "--filter",
+        `label=com.docker.compose.project=${composeProject}`,
+        "--filter",
+        `label=com.docker.compose.service=${serviceName}`,
+        "--format",
+        "{{.ID}}",
+      ],
+      commandTimeoutMs,
+    );
     return output.trim().length > 0;
   } catch {
-    return false;
+    return "unknown";
   }
 }
 
@@ -501,8 +583,9 @@ export function create(config?: Record<string, unknown>): Runtime {
       assertValidSessionId(runtimeConfig.sessionId);
       const projectBaseDir = getProjectBaseDir(runtimeConfig.environment);
       const sessionName = runtimeConfig.environment["AO_SESSION_NAME"] ?? runtimeConfig.sessionId;
+      assertValidSessionId(sessionName);
       const composeProject = sanitizeComposeProject(sessionName, projectBaseDir);
-      const lease = await allocateHostPorts(
+      const lease = await allocateHostPortsWithLock(
         projectBaseDir,
         sessionName,
         options.dashboardPorts,
@@ -523,16 +606,28 @@ export function create(config?: Record<string, unknown>): Runtime {
         "utf-8",
       );
 
-      await dockerCompose([
-        "-p",
-        composeProject,
-        "-f",
-        composeFile,
-        "up",
-        "-d",
-        "--remove-orphans",
-        options.serviceName,
-      ]);
+      try {
+        await run(
+          "docker",
+          [
+            "compose",
+            "-p",
+            composeProject,
+            "-f",
+            composeFile,
+            "up",
+            "-d",
+            "--remove-orphans",
+            options.serviceName,
+          ],
+          options.commandTimeoutMs,
+        );
+      } catch (err) {
+        await safeComposeDown(composeProject, composeFile);
+        removeComposeArtifacts(composeFile);
+        removeLease(getLeasePath(projectBaseDir, sessionName));
+        throw err;
+      }
 
       const attachShellCommand = buildDockerExecShellCommand(
         composeProject,
@@ -577,6 +672,7 @@ export function create(config?: Record<string, unknown>): Runtime {
           composeFile,
           serviceName: options.serviceName,
           leaseFile: getLeasePath(projectBaseDir, sessionName),
+          commandTimeoutMs: options.commandTimeoutMs,
           metadata: {
             ...metadata,
             dockerComposeProject: composeProject,
@@ -621,15 +717,21 @@ export function create(config?: Record<string, unknown>): Runtime {
         typeof handle.data["serviceName"] === "string"
           ? handle.data["serviceName"]
           : options.serviceName;
+      const commandTimeoutMs =
+        typeof handle.data["commandTimeoutMs"] === "number"
+          ? handle.data["commandTimeoutMs"]
+          : options.commandTimeoutMs;
       const [tmuxAlive, containerAlive] = await Promise.all([
         tmux(["has-session", "-t", handle.id])
           .then(() => true)
           .catch(() => false),
         composeProject
-          ? isComposeServiceRunning(composeProject, serviceName)
-          : Promise.resolve(false),
+          ? isComposeServiceRunning(composeProject, serviceName, commandTimeoutMs)
+          : Promise.resolve<ComposeProbeResult>(false),
       ]);
-      return tmuxAlive && containerAlive;
+      if (!tmuxAlive) return false;
+      if (containerAlive === "unknown") return true;
+      return containerAlive;
     },
 
     async getMetrics(handle: RuntimeHandle): Promise<RuntimeMetrics> {
