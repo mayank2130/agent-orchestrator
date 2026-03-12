@@ -6,7 +6,7 @@ import {
   type ObservabilitySummary,
 } from "@composio/ao-core";
 import { NextResponse } from "next/server";
-import { resolveProjectIdForSessionId } from "./session-project";
+import { resolveProjectIdForSessionId } from "@/lib/session-project";
 
 let webApiObserver: ReturnType<typeof createProjectObserver> | null | undefined;
 
