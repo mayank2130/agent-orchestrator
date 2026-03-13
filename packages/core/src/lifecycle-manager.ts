@@ -221,20 +221,10 @@ export function createLifecycleManager(deps: LifecycleManagerDeps): LifecycleMan
           if (activityState.state === "waiting_input") return "needs_input";
           if (activityState.state === "exited") return "killed";
 
-          // Stuck detection: if agent is idle/blocked beyond the configured threshold,
-          // transition to "stuck" so the agent-stuck reaction can fire.
-          // BUT: if the session already has a PR, fall through to step 4 so
-          // merge-readiness is checked first. Without this, stuck detection
-          // short-circuits before the PR state checks and "mergeable" is
-          // never reached — causing the pipeline to stall.
           if (
             (activityState.state === "idle" || activityState.state === "blocked") &&
             activityState.timestamp
           ) {
-            if (isIdleBeyondThreshold(session, activityState.timestamp) && !session.pr) {
-              return "stuck";
-            }
-            // Store idle timestamp for post-PR-check stuck detection (step 4b)
             detectedIdleTimestamp = activityState.timestamp;
           }
 
