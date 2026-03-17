@@ -281,7 +281,7 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     };
 
     // PTY -> WebSocket
-    (pty as { onData: (data: string) => void }).onData((data) => {
+    (pty as { onData: (data: string) => void }).onData((data: string) => {
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(data);
       }
