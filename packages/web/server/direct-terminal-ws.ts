@@ -116,12 +116,8 @@ export interface DirectTerminalServer {
  * Separated from listen() so tests can control lifecycle.
  */
 export function createDirectTerminalServer(
-  tmuxPath: string,
-  // Parameter is provided by tests for future use, but current implementation
-  // uses the global ptySpawn variable loaded at module import time.
-  // Prefix with underscore to indicate intentionally unused for now.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _ptySpawnFn: SpawnFunction,
+  tmuxPath: string | undefined,
+  ptySpawnFn: SpawnFunction = ensurePtySpawn(),
 ): DirectTerminalServer {
   const TMUX = tmuxPath ?? findTmux();
   const activeSessions = new Map<string, TerminalSession>();
@@ -262,7 +258,7 @@ export function createDirectTerminalServer(
     try {
       console.log(`[DirectTerminal] Spawning PTY: tmux attach-session -t ${tmuxSessionId}`);
 
-      pty = (ptySpawn as SpawnFunction)(
+      pty = ptySpawnFn(
         TMUX,
         ["attach-session", "-t", tmuxSessionId],
         {
@@ -418,7 +414,7 @@ if (isMainModule) {
   const TMUX = findTmux();
   console.log(`[DirectTerminal] Using tmux: ${TMUX}`);
 
-  const { server, shutdown } = createDirectTerminalServer(TMUX, ensurePtySpawn());
+  const { server, shutdown } = createDirectTerminalServer(TMUX);
   const PORT = parseInt(process.env.DIRECT_TERMINAL_PORT ?? "14801", 10);
 
   server.listen(PORT, () => {
