@@ -69,7 +69,7 @@ function makeHandle(id: string): RuntimeHandle {
 }
 
 function mockGh(result: unknown): void {
-  ghMock.mockResolvedValueOnce({ stdout: JSON.stringify(result) });
+  ghMock.mockResolvedValue({ stdout: JSON.stringify(result) });
 }
 
 const pr: PRInfo = {
