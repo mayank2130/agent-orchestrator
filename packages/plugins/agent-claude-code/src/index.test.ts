@@ -44,6 +44,7 @@ vi.mock("node:fs/promises", () => ({
 
 vi.mock("node:fs", () => ({
   existsSync: mockExistsSync,
+  mkdirSync: vi.fn(),
 }));
 
 vi.mock("node:os", () => ({
@@ -696,20 +697,16 @@ describe("getSessionInfo", () => {
 // METADATA_UPDATER_SCRIPT — content verification (unit tests)
 // =========================================================================
 describe("METADATA_UPDATER_SCRIPT content", () => {
-  it("uses inline JavaScript parser via node --input-type=module", () => {
-    // The script uses node --input-type=module with here-document to run the inline parser
-    expect(METADATA_UPDATER_SCRIPT).toContain("node --input-type=module -");
-    expect(METADATA_UPDATER_SCRIPT).toContain("parseCommands");
+  it("uses AST-based parser via metadata-parser.js", () => {
+    // The script uses Node.js with a separate metadata-parser.js file for AST parsing
+    expect(METADATA_UPDATER_SCRIPT).toContain("metadata-parser.js");
+    expect(METADATA_UPDATER_SCRIPT).toContain("PARSER_SCRIPT=");
+    expect(METADATA_UPDATER_SCRIPT).toContain("NODE_PATH=");
   });
 
-  it("does NOT use separate metadata-parser.js file", () => {
-    // Inline parser approach doesn't require a separate file
-    expect(METADATA_UPDATER_SCRIPT).not.toContain("metadata-parser.js");
-    expect(METADATA_UPDATER_SCRIPT).not.toContain("PARSER_SCRIPT=");
-  });
 
   it("does NOT use regex-based clean_command stripping logic", () => {
-    // Inline parser approach doesn't need regex cd prefix stripping
+    // AST-based approach doesn't need regex cd prefix stripping
     expect(METADATA_UPDATER_SCRIPT).not.toContain("clean_command");
     expect(METADATA_UPDATER_SCRIPT).not.toMatch(/while.*cd/);
   });

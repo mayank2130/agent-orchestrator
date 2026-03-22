@@ -78,7 +78,7 @@ function parseCommands(commandStr: string): CommandInfo[] {
     }
 
     return commands;
-  } catch (error) {
+  } catch {
     // If parsing fails, treat as single command with raw string
     return [{ words: [commandStr] }];
   }
@@ -88,7 +88,7 @@ function parseCommands(commandStr: string): CommandInfo[] {
  * Extract PR URL from command output.
  */
 function extractPRUrl(output: string): string | null {
-  const match = output.match(/https:\/\/github\.com\/[^\/\s]+\/[^\/\s]+\/pull\/\d+/);
+  const match = output.match(/https:\/\/github\.com\/[^\s/]+\/[^\s/]+\/pull\/\d+/);
   return match ? match[0] : null;
 }
 
@@ -98,7 +98,7 @@ function extractPRUrl(output: string): string | null {
 function matchCommand(words: string[], output: string): ParseResult | null {
   if (words.length === 0) return null;
 
-  const [cmd, arg1, arg2, arg3, ...rest] = words;
+  const [cmd, arg1, arg2, arg3, ..._rest] = words;
 
   // Check for: gh pr create
   if (cmd === "gh" && arg1 === "pr" && arg2 === "create") {
@@ -166,7 +166,7 @@ export function parseShellCommand(command: string, output: string): ParseResult 
     }
 
     return { type: "none" };
-  } catch (error) {
+  } catch {
     // Fallback to regex-based approach
     return parseWithRegex(command, output);
   }

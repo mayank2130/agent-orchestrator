@@ -18,7 +18,8 @@ import { execFile, execFileSync } from "node:child_process";
 import { readdir, readFile, stat, open, writeFile, mkdir, chmod } from "node:fs/promises";
 import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join, dirname, fileURLToPath } from "node:path";
+import { basename, join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -40,8 +41,9 @@ function normalizePermissionMode(mode: string | undefined): "permissionless" | "
 // Metadata Updater Hook Script
 // =============================================================================
 
+/* eslint-disable no-useless-escape */
 /** Hook script content that updates session metadata on git/gh commands */
-const METADATA_UPDATER_SCRIPT = `#!/usr/bin/env bash
+export const METADATA_UPDATER_SCRIPT = `#!/usr/bin/env bash
 # Metadata Updater Hook for Agent Orchestrator
 #
 # This PostToolUse hook automatically updates session metadata when:
@@ -176,6 +178,7 @@ fi
 echo '{}'
 exit 0
 `;
+/* eslint-enable no-useless-escape */
 
 // =============================================================================
 // Plugin Manifest
@@ -846,16 +849,16 @@ function createClaudeCodeAgent(): Agent {
     },
 
     async setupWorkspaceHooks(workspacePath: string, _config: WorkspaceHooksConfig): Promise<void> {
-      // Use absolute path for hook command (specific to this workspace)
-      const hookScriptPath = join(workspacePath, ".claude", "metadata-updater.sh");
+      // Use relative path for hook command (symlink-safe)
+      const hookScriptPath = ".claude/metadata-updater.sh";
       await setupHookInWorkspace(workspacePath, hookScriptPath);
     },
 
     async postLaunchSetup(session: Session): Promise<void> {
       if (!session.workspacePath) return;
 
-      // Use absolute path for hook command (specific to this workspace)
-      const hookScriptPath = join(session.workspacePath, ".claude", "metadata-updater.sh");
+      // Use relative path for hook command (symlink-safe)
+      const hookScriptPath = ".claude/metadata-updater.sh";
       await setupHookInWorkspace(session.workspacePath, hookScriptPath);
     },
   };
@@ -867,6 +870,19 @@ function createClaudeCodeAgent(): Agent {
 
 export function create(): Agent {
   return createClaudeCodeAgent();
+}
+
+/**
+ * Detect if Claude Code CLI is available.
+ */
+export function detect(): boolean {
+  try {
+    // Use --version for cross-platform compatibility (Windows has no `which`)
+    execFileSync("claude", ["--version"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export default { manifest, create, detect } satisfies PluginModule<Agent>;
