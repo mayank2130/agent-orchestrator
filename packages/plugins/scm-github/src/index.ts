@@ -7,6 +7,7 @@
 import { execFile } from "node:child_process";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import { ghCache } from "./cache.js";
 import {
   CI_STATUS,
   type PluginModule,
@@ -77,6 +78,36 @@ async function gh(args: string[]): Promise<string> {
 
 async function ghInDir(args: string[], cwd: string): Promise<string> {
   return execCli("gh", args, cwd);
+}
+
+/**
+ * Wrapper that adds caching and deduplication to gh CLI calls.
+ *
+ * Flow:
+ * 1. Generate cache key from arguments
+ * 2. Check cache for existing unexpired value
+ * 3. If cache miss, use dedupe() to avoid duplicate concurrent calls
+ * 4. Execute gh CLI, cache result, return
+ *
+ * @param args - Arguments to pass to gh CLI
+ * @returns CLI output (trimmed)
+ */
+async function cachedGh(args: string[]): Promise<string> {
+  const cacheKey = ghCache.key(args);
+  const ttl = ghCache.getTTL(args);
+
+  // Check cache first
+  const cached = ghCache.get<string>(cacheKey, ttl);
+  if (cached !== null) {
+    return cached;
+  }
+
+  // Cache miss - dedupe concurrent requests and execute
+  return ghCache.dedupe(cacheKey, async () => {
+    const result = await gh(args);
+    ghCache.set(cacheKey, result, ttl);
+    return result;
+  });
 }
 
 async function git(args: string[], cwd: string): Promise<string> {
@@ -158,7 +189,7 @@ function mapRawCheckStateToStatus(rawState: string | undefined): CICheck["status
 }
 
 async function getCIChecksFromStatusRollup(pr: PRInfo): Promise<CICheck[]> {
-  const raw = await gh([
+  const raw = await cachedGh([
     "pr",
     "view",
     String(pr.number),
@@ -568,6 +599,7 @@ function createGitHubSCM(): SCM {
 
     async assignPRToCurrentUser(pr: PRInfo): Promise<void> {
       await gh(["pr", "edit", String(pr.number), "--repo", repoFlag(pr), "--add-assignee", "@me"]);
+      ghCache.invalidatePR(pr);
     },
 
     async checkoutPR(pr: PRInfo, workspacePath: string): Promise<boolean> {
@@ -603,7 +635,7 @@ function createGitHubSCM(): SCM {
     },
 
     async getPRSummary(pr: PRInfo) {
-      const raw = await gh([
+      const raw = await cachedGh([
         "pr",
         "view",
         String(pr.number),
@@ -632,15 +664,17 @@ function createGitHubSCM(): SCM {
       const flag = method === "rebase" ? "--rebase" : method === "merge" ? "--merge" : "--squash";
 
       await gh(["pr", "merge", String(pr.number), "--repo", repoFlag(pr), flag, "--delete-branch"]);
+      ghCache.invalidatePR(pr);
     },
 
     async closePR(pr: PRInfo): Promise<void> {
       await gh(["pr", "close", String(pr.number), "--repo", repoFlag(pr)]);
+      ghCache.invalidatePR(pr);
     },
 
     async getCIChecks(pr: PRInfo): Promise<CICheck[]> {
       try {
-        const raw = await gh([
+        const raw = await cachedGh([
           "pr",
           "checks",
           String(pr.number),
@@ -713,7 +747,7 @@ function createGitHubSCM(): SCM {
     },
 
     async getReviews(pr: PRInfo): Promise<Review[]> {
-      const raw = await gh([
+      const raw = await cachedGh([
         "pr",
         "view",
         String(pr.number),
@@ -750,7 +784,7 @@ function createGitHubSCM(): SCM {
     },
 
     async getReviewDecision(pr: PRInfo): Promise<ReviewDecision> {
-      const raw = await gh([
+      const raw = await cachedGh([
         "pr",
         "view",
         String(pr.number),
@@ -771,7 +805,7 @@ function createGitHubSCM(): SCM {
     async getPendingComments(pr: PRInfo): Promise<ReviewComment[]> {
       try {
         // Use GraphQL with variables to get review threads with actual isResolved status
-        const raw = await gh([
+        const raw = await cachedGh([
           "api",
           "graphql",
           "-f",
@@ -873,7 +907,7 @@ function createGitHubSCM(): SCM {
         }> = [];
 
         for (let page = 1; ; page++) {
-          const raw = await gh([
+          const raw = await cachedGh([
             "api",
             "--method",
             "GET",
@@ -1036,5 +1070,8 @@ export const manifest = {
 export function create(): SCM {
   return createGitHubSCM();
 }
+
+// Export cache for testing and monitoring
+export { ghCache } from "./cache.js";
 
 export default { manifest, create } satisfies PluginModule<SCM>;
