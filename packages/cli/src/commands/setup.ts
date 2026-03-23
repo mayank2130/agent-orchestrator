@@ -13,7 +13,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import chalk from "chalk";
 import type { Command } from "commander";
-import { parse as yamlParse, stringify as yamlStringify } from "yaml";
+import { parseDocument } from "yaml";
 import { findConfigFile } from "@composio/ao-core";
 import {
   probeGateway,
@@ -224,12 +224,13 @@ function writeOpenClawConfig(
   nonInteractive: boolean,
 ): void {
   const rawYaml = readFileSync(configPath, "utf-8");
-  const rawConfig = yamlParse(rawYaml) ?? {};
+  const doc = parseDocument(rawYaml);
 
   // Add notifiers.openclaw block — write actual token, not a placeholder
   // (AO does not expand env placeholders in YAML at runtime)
-  if (!rawConfig.notifiers) rawConfig.notifiers = {};
-  rawConfig.notifiers.openclaw = {
+  if (!doc.has("notifiers")) doc.set("notifiers", {});
+  const notifiers = doc.get("notifiers") as any;
+  notifiers.openclaw = {
     plugin: "openclaw",
     url: resolved.url,
     token: resolved.token,
@@ -239,35 +240,39 @@ function writeOpenClawConfig(
   };
 
   // Add "openclaw" to defaults.notifiers if not already present
-  if (!rawConfig.defaults) rawConfig.defaults = {};
-  if (!rawConfig.defaults.notifiers) rawConfig.defaults.notifiers = ["desktop"];
-  if (!Array.isArray(rawConfig.defaults.notifiers)) {
-    rawConfig.defaults.notifiers = [rawConfig.defaults.notifiers];
+  if (!doc.has("defaults")) doc.set("defaults", {});
+  const defaults = doc.get("defaults") as any;
+  if (!defaults.notifiers) defaults.notifiers = ["desktop"];
+  if (!Array.isArray(defaults.notifiers)) {
+    defaults.notifiers = [defaults.notifiers];
   }
-  if (!rawConfig.defaults.notifiers.includes("openclaw")) {
-    rawConfig.defaults.notifiers.push("openclaw");
+  if (!defaults.notifiers.includes("openclaw")) {
+    defaults.notifiers.push("openclaw");
   }
 
   // Add "openclaw" to notificationRouting so notifications actually fire
   // (AO prefers per-priority routing over defaults.notifiers)
-  if (!rawConfig.notificationRouting) {
+  if (!doc.has("notificationRouting")) {
     // Initialize with default routing that includes openclaw
-    rawConfig.notificationRouting = {
+    doc.set("notificationRouting", {
       urgent: ["desktop", "openclaw"],
       action: ["desktop", "openclaw"],
       warning: ["openclaw"],
       info: ["openclaw"],
-    };
-  } else if (typeof rawConfig.notificationRouting === "object") {
-    for (const priority of Object.keys(rawConfig.notificationRouting)) {
-      const list = rawConfig.notificationRouting[priority];
-      if (Array.isArray(list) && !list.includes("openclaw")) {
-        list.push("openclaw");
+    });
+  } else {
+    const routing = doc.get("notificationRouting") as any;
+    if (typeof routing === "object") {
+      for (const priority of Object.keys(routing)) {
+        const list = routing[priority];
+        if (Array.isArray(list) && !list.includes("openclaw")) {
+          list.push("openclaw");
+        }
       }
     }
   }
 
-  writeFileSync(configPath, yamlStringify(rawConfig, { indent: 2 }));
+  writeFileSync(configPath, doc.toString());
 
   if (nonInteractive) {
     console.log(chalk.green(`✓ Config written to ${configPath}`));
@@ -460,7 +465,8 @@ async function runSetupAction(opts: SetupOptions): Promise<void> {
 
       // --- Check for existing openclaw config ----------------------------------
       const rawYaml = readFileSync(configPath, "utf-8");
-      const rawConfig = yamlParse(rawYaml) ?? {};
+      const doc = parseDocument(rawYaml);
+      const rawConfig = doc.toJSON() ?? {};
       const existingOpenClaw = rawConfig?.notifiers?.openclaw;
       const existingUrl = existingOpenClaw?.url as string | undefined;
 

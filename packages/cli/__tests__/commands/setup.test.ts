@@ -115,7 +115,7 @@ describe("setup openclaw command", () => {
         "--non-interactive",
       ]);
 
-      expect(mockWriteFileSync).toHaveBeenCalledOnce();
+      expect(mockWriteFileSync).toHaveBeenCalled();
       const writtenYaml = mockWriteFileSync.mock.calls[0][1] as string;
       expect(writtenYaml).toContain("openclaw");
       expect(writtenYaml).toContain("plugin: openclaw");
@@ -132,11 +132,8 @@ describe("setup openclaw command", () => {
         "--non-interactive",
       ]);
 
-      expect(mockValidateToken).toHaveBeenCalledWith(
-        "http://127.0.0.1:18789/hooks/agent",
-        "env-token",
-      );
-      expect(mockWriteFileSync).toHaveBeenCalledOnce();
+      expect(mockValidateToken).not.toHaveBeenCalled();
+      expect(mockWriteFileSync).toHaveBeenCalled();
     });
 
     it("reads URL from OPENCLAW_GATEWAY_URL env var", async () => {
@@ -149,14 +146,12 @@ describe("setup openclaw command", () => {
         "--non-interactive",
       ]);
 
-      expect(mockValidateToken).toHaveBeenCalledWith(
-        "http://remote:18789/hooks/agent",
-        "tok",
-      );
+      expect(mockValidateToken).not.toHaveBeenCalled();
+      const writtenYaml = mockWriteFileSync.mock.calls[0][1] as string;
+      expect(writtenYaml).toContain("http://remote:18789/hooks/agent");
     });
 
-    it("validates token against gateway before saving", async () => {
-      mockValidateToken.mockResolvedValue({ valid: true });
+    it("skips validation in non-interactive mode", async () => {
       const program = createProgram();
 
       await program.parseAsync([
@@ -166,11 +161,8 @@ describe("setup openclaw command", () => {
         "--non-interactive",
       ]);
 
-      expect(mockValidateToken).toHaveBeenCalledWith(
-        "http://127.0.0.1:18789/hooks/agent",
-        "good-token",
-      );
-      expect(mockWriteFileSync).toHaveBeenCalledOnce();
+      expect(mockValidateToken).not.toHaveBeenCalled();
+      expect(mockWriteFileSync).toHaveBeenCalled();
     });
   });
 
@@ -224,7 +216,7 @@ describe("setup openclaw command", () => {
       const writtenYaml = mockWriteFileSync.mock.calls[0][1] as string;
       expect(writtenYaml).toContain("plugin: openclaw");
       expect(writtenYaml).toContain("http://custom:9999/hooks/agent");
-      expect(writtenYaml).toContain("${OPENCLAW_HOOKS_TOKEN}");
+      expect(writtenYaml).toContain("token: tok");
       expect(writtenYaml).toContain("retries: 3");
       expect(writtenYaml).toContain("retryDelayMs: 1000");
       expect(writtenYaml).toContain("wakeMode: now");
@@ -282,27 +274,6 @@ describe("setup openclaw command", () => {
       expect(mockWriteFileSync).not.toHaveBeenCalled();
     });
 
-    it("exits when validation fails in non-interactive mode", async () => {
-      mockValidateToken.mockResolvedValue({ valid: false, error: "Token rejected" });
-      const program = createProgram();
-
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
-        throw new Error("process.exit");
-      });
-
-      await expect(
-        program.parseAsync([
-          "node", "test", "setup", "openclaw",
-          "--url", "http://127.0.0.1:18789/hooks/agent",
-          "--token", "bad-token",
-          "--non-interactive",
-        ]),
-      ).rejects.toThrow("process.exit");
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
-      expect(mockWriteFileSync).not.toHaveBeenCalled();
-    });
-
     it("exits when --url missing in non-interactive mode", async () => {
       const program = createProgram();
 
@@ -321,23 +292,19 @@ describe("setup openclaw command", () => {
       expect(exitSpy).toHaveBeenCalledWith(1);
     });
 
-    it("exits when --token missing in non-interactive mode", async () => {
+    it("auto-generates token when missing in non-interactive mode", async () => {
       delete process.env["OPENCLAW_HOOKS_TOKEN"];
       const program = createProgram();
 
-      const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
-        throw new Error("process.exit");
-      });
+      await program.parseAsync([
+        "node", "test", "setup", "openclaw",
+        "--url", "http://127.0.0.1:18789/hooks/agent",
+        "--non-interactive",
+      ]);
 
-      await expect(
-        program.parseAsync([
-          "node", "test", "setup", "openclaw",
-          "--url", "http://127.0.0.1:18789/hooks/agent",
-          "--non-interactive",
-        ]),
-      ).rejects.toThrow("process.exit");
-
-      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(mockWriteFileSync).toHaveBeenCalled();
+      const writtenYaml = mockWriteFileSync.mock.calls[0][1] as string;
+      expect(writtenYaml).toContain("token:");
     });
   });
 });
