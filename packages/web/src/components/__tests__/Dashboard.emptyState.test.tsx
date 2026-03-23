@@ -21,12 +21,36 @@ beforeEach(() => {
     CLOSED: 2,
   }) as unknown as typeof EventSource;
   global.fetch = vi.fn();
+  localStorage.clear();
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
 });
 
 describe("Dashboard empty state", () => {
-  it("shows empty state when there are no sessions (single-project view)", () => {
+  it("shows no-projects empty state when no projects configured", () => {
     render(<Dashboard initialSessions={[]} />);
-    expect(screen.getByText(/No sessions running/i)).toBeInTheDocument();
+    expect(screen.getByText("No projects configured")).toBeInTheDocument();
+  });
+
+  it("shows spawn empty state for a single project with no sessions", () => {
+    render(
+      <Dashboard
+        initialSessions={[]}
+        projects={[{ id: "proj", name: "My Project" }]}
+      />,
+    );
+    expect(screen.getByText("Spawn orchestrator to get started")).toBeInTheDocument();
   });
 
   it("does not show empty state when sessions exist", () => {
@@ -51,8 +75,10 @@ describe("Dashboard empty state", () => {
             metadata: {},
           },
         ]}
+        projects={[{ id: "proj", name: "My Project" }]}
       />,
     );
-    expect(queryByText(/No sessions running/i)).not.toBeInTheDocument();
+    expect(queryByText("No projects configured")).not.toBeInTheDocument();
+    expect(queryByText("Spawn orchestrator to get started")).not.toBeInTheDocument();
   });
 });

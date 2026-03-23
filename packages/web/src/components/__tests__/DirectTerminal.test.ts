@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildDirectTerminalWsUrl, buildTerminalThemes } from "@/components/DirectTerminal";
+import { buildDirectTerminalWsUrl } from "@/components/DirectTerminal";
+import { buildTerminalTheme } from "@/components/TerminalTheme";
 
 describe("buildDirectTerminalWsUrl", () => {
   it("keeps non-standard port when proxy path override is set", () => {
@@ -94,46 +95,24 @@ function contrastRatio(a: string, b: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-describe("buildTerminalThemes", () => {
-  it("dark theme has valid hex colors for bg, fg, and all ANSI slots", () => {
-    const { dark } = buildTerminalThemes("agent");
-    expect(dark.background).toMatch(HEX_RE);
-    expect(dark.foreground).toMatch(HEX_RE);
+describe("buildTerminalTheme", () => {
+  it("agent theme has valid hex colors for bg, fg, and all ANSI slots", () => {
+    const theme = buildTerminalTheme("agent");
+    expect(theme.background).toMatch(HEX_RE);
+    expect(theme.foreground).toMatch(HEX_RE);
     for (const key of ANSI_KEYS) {
-      expect(dark[key]).toMatch(HEX_RE);
+      expect(theme[key]).toMatch(HEX_RE);
     }
   });
 
-  it("light theme has valid hex colors for bg, fg, and all ANSI slots", () => {
-    const { light } = buildTerminalThemes("agent");
-    expect(light.background).toBe("#fafafa");
-    expect(light.foreground).toBe("#24292f");
-    for (const key of ANSI_KEYS) {
-      expect(light[key]).toMatch(HEX_RE);
-    }
-  });
-
-  it("light theme ANSI colors maintain readable contrast on the terminal background", () => {
-    const { light } = buildTerminalThemes("agent");
-    for (const key of ANSI_KEYS) {
-      expect(contrastRatio(light.background!, light[key]!)).toBeGreaterThanOrEqual(4);
-    }
-  });
-
-  it("dark theme background is #0a0a0f", () => {
-    const { dark } = buildTerminalThemes("agent");
-    expect(dark.background).toBe("#0a0a0f");
+  it("theme background is #0a0a0f", () => {
+    const theme = buildTerminalTheme("agent");
+    expect(theme.background).toBe("#0a0a0f");
   });
 
   it("variant changes cursor color between agent and orchestrator", () => {
-    const agent = buildTerminalThemes("agent");
-    const orch = buildTerminalThemes("orchestrator");
-    expect(agent.dark.cursor).not.toBe(orch.dark.cursor);
-    expect(agent.light.cursor).not.toBe(orch.light.cursor);
-  });
-
-  it("selection colors differ between dark and light themes", () => {
-    const { dark, light } = buildTerminalThemes("agent");
-    expect(dark.selectionBackground).not.toBe(light.selectionBackground);
+    const agent = buildTerminalTheme("agent");
+    const orch = buildTerminalTheme("orchestrator");
+    expect(agent.cursor).not.toBe(orch.cursor);
   });
 });

@@ -7,7 +7,6 @@ import { makeSession } from "@/__tests__/helpers";
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   usePathname: () => "/",
-  useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("Dashboard globalPause banner", () => {
@@ -32,6 +31,19 @@ describe("Dashboard globalPause banner", () => {
     };
     global.EventSource = vi.fn(() => eventSourceMock as unknown as EventSource);
     global.fetch = vi.fn();
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
   });
 
   afterEach(() => {

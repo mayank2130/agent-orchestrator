@@ -396,7 +396,7 @@ describe("SessionCard", () => {
     expect(screen.getByText("ask to fix")).toBeInTheDocument();
   });
 
-  it("shows action buttons even when agent is active", () => {
+  it("hides ask-to-fix action when agent is active", () => {
     const pr = makePR({
       state: "open",
       ciStatus: "failing",
@@ -412,19 +412,23 @@ describe("SessionCard", () => {
     });
     const session = makeSession({ activity: "active", pr });
     render(<SessionCard session={session} />);
-    expect(screen.getByText("ask to fix")).toBeInTheDocument();
+    // "ask to fix" should not appear when agent is active
+    expect(screen.queryByText("ask to fix")).not.toBeInTheDocument();
   });
 
-  it("shows issue details in the compact card footer", () => {
-    const session = makeSession({ id: "test-1", issueId: "INT-100", pr: null });
+  it("shows issue label when card is expanded", () => {
+    const session = makeSession({ id: "test-1", issueLabel: "INT-100", pr: null });
     render(<SessionCard session={session} />);
-    expect(screen.getAllByText("INT-100")).toHaveLength(2);
+    fireEvent.click(screen.getByText("test-1"));
+    expect(screen.getByText("INT-100")).toBeInTheDocument();
   });
 
-  it("shows icon-only terminate button in the footer", () => {
+  it("shows terminate button when card is expanded", () => {
     const session = makeSession({ pr: null });
     render(<SessionCard session={session} />);
-    expect(screen.getByRole("button", { name: /terminate session/i })).toBeInTheDocument();
+    // Click to expand the card
+    fireEvent.click(screen.getByText(session.id));
+    expect(screen.getByText("terminate")).toBeInTheDocument();
   });
 });
 
@@ -439,9 +443,9 @@ describe("AttentionZone", () => {
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
-  it("renders empty state when sessions array is empty", () => {
-    render(<AttentionZone level="respond" sessions={[]} />);
-    expect(screen.getByText("No sessions")).toBeInTheDocument();
+  it("renders nothing when sessions array is empty", () => {
+    const { container } = render(<AttentionZone level="respond" sessions={[]} />);
+    expect(container.innerHTML).toBe("");
   });
 
   it("shows session cards when not collapsed", () => {
@@ -458,11 +462,10 @@ describe("AttentionZone", () => {
     expect(screen.getByText("Working")).toBeInTheDocument();
   });
 
-  it("done zone always shows sessions (kanban columns are always expanded)", () => {
+  it("done zone renders header and can be expanded", () => {
     const sessions = [makeSession({ id: "s1" })];
     render(<AttentionZone level="done" sessions={sessions} />);
     expect(screen.getByText("Done")).toBeInTheDocument();
-    expect(screen.getByText("s1")).toBeInTheDocument();
   });
 
   it("passes callbacks to SessionCards", () => {

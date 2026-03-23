@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   transpilePackages: [
     "@composio/ao-core",
     "@composio/ao-plugin-agent-claude-code",
