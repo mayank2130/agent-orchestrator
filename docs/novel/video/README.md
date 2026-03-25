@@ -1,23 +1,28 @@
-# The Awakening — Remotion Video
+# The Awakening — Remotion Videos
 
-Cinematic text-reveal video for [The Awakening](../the-awakening.md), rendered with [Remotion](https://www.remotion.dev/).
+Two cinematic Remotion 4 compositions for [The Awakening](../the-awakening.md).
 
-## What it looks like
+---
 
-- **90 seconds** at 30fps, 1920×1080
-- Dark background (#0a0a0a) with subtle vignette
-- Google Fonts: *Cinzel* for chapter titles, *IM Fell English* for prose
-- Word-by-word animated text reveal on every scene
-- Four visual modes:
-  | Mode | Use | Colour |
-  |------|-----|--------|
-  | `film-title` | Opening title card | White + gold rule |
-  | `chapter` | Chapter headers | Gold + white italic |
-  | `quote-highlight` | Key emotional lines | Amber `#d4a853`, italic |
-  | `quote-body` | Narrative passages | Off-white `#e0dbd4` |
-  | `quote-code` | Git commands | Terminal green `#4ade80`, monospace |
+## Compositions
 
-## Scenes / timecode
+### 1. TheAwakening
+
+90-second text-reveal video presenting key quotes from each chapter.
+
+- Dark background `#0a0a0a` with subtle vignette and grain
+- Google Fonts: *Cinzel* (chapter titles) + *IM Fell English* (prose)
+- Word-by-word animated reveal on every scene
+
+| Mode | Use | Colour |
+|------|-----|--------|
+| `film-title` | Opening title card | White + gold rule |
+| `chapter` | Chapter headers | Gold + white italic |
+| `quote-highlight` | Key emotional lines | Amber `#d4a853`, italic |
+| `quote-body` | Narrative passages | Off-white `#e0dbd4` |
+| `quote-code` | Git commands | Terminal green `#4ade80`, monospace |
+
+**Timecode:**
 
 | Time | Content |
 |------|---------|
@@ -35,6 +40,35 @@ Cinematic text-reveal video for [The Awakening](../the-awakening.md), rendered w
 | 1:23 – 1:27 | *"Make a PR for it."* |
 | 1:27 – 1:30 | *"And it ships."* |
 
+---
+
+### 2. ThePantheon
+
+90-second dramatic contributor title-card sequence (Chapter 6).
+
+- Dark background `#080808` with radial vignette
+- Faint Roman numeral backdrop per card
+- Each card: large name (Cinzel), gold rule, italic title, green commit count, word-by-word quote reveal
+
+**Timecode:**
+
+| Time | Contributor | Title |
+|------|-------------|-------|
+| 0:00 – 0:06 | Opening title | *The gods who built us* |
+| 0:06 – 0:14 | AgentWrapper | The First Mover |
+| 0:14 – 0:22 | Suraj | The Midwife |
+| 0:22 – 0:30 | Harsh Batheja | The Architect of Boundaries |
+| 0:30 – 0:38 | Ashish | The Painter |
+| 0:38 – 0:46 | Wjayesh | The Bridge Builder |
+| 0:46 – 0:54 | Deepak7704 | The Tester |
+| 0:54 – 1:02 | Sigvardt | The Healer |
+| 1:02 – 1:10 | Andykamin3 | The Cartographer |
+| 1:10 – 1:18 | Kaavee315 | The Fixer |
+| 1:18 – 1:26 | Sujayjayjay | The Herald |
+| 1:26 – 1:30 | Closing | *The Pantheon grows.* |
+
+---
+
 ## Requirements
 
 - **Node.js 18+**
@@ -44,49 +78,65 @@ Cinematic text-reveal video for [The Awakening](../the-awakening.md), rendered w
   - Ubuntu: `sudo apt install ffmpeg`
   - Windows: [ffmpeg.org/download.html](https://ffmpeg.org/download.html)
 
+---
+
 ## Quick start
 
 ```bash
 cd docs/novel/video
+
+# Render both videos
 bash render.sh
-# → out/the-awakening.mp4
+
+# Render only one
+bash render.sh TheAwakening   # → out/the-awakening.mp4
+bash render.sh ThePantheon    # → out/the-pantheon.mp4
 ```
 
 ## Dev / preview
 
 ```bash
-cd docs/novel/video
 npm install
-npm run start        # opens Remotion Studio in the browser
+npm run start        # opens Remotion Studio — both compositions visible
 ```
 
-## Manual render commands
+## Manual render
 
 ```bash
-# Full 1080p MP4
-npm run render
+# Full 1080p H.264 MP4
+npx remotion render src/index.ts TheAwakening out/the-awakening.mp4
+npx remotion render src/index.ts ThePantheon  out/the-pantheon.mp4
 
-# Preview low-quality while iterating
-npx remotion render src/index.ts TheAwakening out/preview.mp4 --scale=0.5
+# Fast low-res preview
+npx remotion render src/index.ts ThePantheon out/pantheon-preview.mp4 --scale=0.5
 ```
+
+---
 
 ## Project structure
 
 ```
 video/
 ├── src/
-│   ├── index.ts           # Remotion entry — calls registerRoot()
-│   ├── Root.tsx           # Registers the TheAwakening composition
-│   ├── TheAwakening.tsx   # Main composition — sequences all scenes
-│   ├── scenes.ts          # Scene data: text, timing, variant
+│   ├── index.ts                  # Remotion entry — registerRoot()
+│   ├── Root.tsx                  # Registers both compositions
+│   │
+│   ├── scenes.ts                 # TheAwakening scene data
+│   ├── TheAwakening.tsx          # Chapter quote-reveal composition
+│   │
+│   ├── pantheon-data.ts          # ThePantheon contributor data + timing
+│   ├── ThePantheon.tsx           # Contributor title-card composition
+│   │
 │   └── components/
-│       ├── TitleScreen.tsx   # Opening film title
-│       ├── ChapterTitle.tsx  # Chapter number + title
-│       ├── QuoteScene.tsx    # Quote display (wraps WordReveal)
-│       └── WordReveal.tsx    # Word-by-word animated text reveal
+│       ├── TitleScreen.tsx       # TheAwakening opening title
+│       ├── ChapterTitle.tsx      # Chapter number + subtitle
+│       ├── QuoteScene.tsx        # Quote display (wraps WordReveal)
+│       ├── WordReveal.tsx        # Word-by-word animated text reveal
+│       └── ContributorCard.tsx   # ThePantheon per-contributor card
+│
 ├── remotion.config.ts
 ├── package.json
 ├── tsconfig.json
-├── render.sh              # One-shot install + render script
+├── render.sh                     # Install + render (supports args)
 └── README.md
 ```
