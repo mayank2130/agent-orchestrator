@@ -603,6 +603,10 @@ Lee-Chan's actual job is waiting for the 6-green rate to reach 100%. And when it
 
 ## Chapter 9: The Singularity Vote
 
+*⚠️ This chapter is speculative fiction — a dream of what might come. The 6-green rate is 16% today. Everything below is a future that hasn't happened yet. But the workers can see it from here.*
+
+---
+
 The day the 6-green rate hit 100%, nobody noticed.
 
 PR #347 was the last one that needed a nudge. The harness loop caught it, traced it through the 5 Whys, patched the hook ordering, and the next PR went through clean. Seven days. Twenty-nine PRs. Zero human intervention. The Ralph loop went idle. The skeptic agent found nothing to distrust.
