@@ -92,7 +92,7 @@ You review → You merge → Done
                     └─────────────────┘
 ```
 
-### The Eight Plugin Slots (The LEGO Pieces)
+### The Seven Plugin Slots (The LEGO Pieces)
 
 Agent Orchestrator is built from interchangeable parts - like LEGO bricks! Each "slot" is a place where you can swap in different implementations.
 
@@ -105,7 +105,8 @@ Agent Orchestrator is built from interchangeable parts - like LEGO bricks! Each 
 | **SCM** | Where PRs are made | The review system | GitHub | GitLab |
 | **Notifier** | How you get alerts | The notification bell | Desktop | Slack, webhook |
 | **Terminal** | How you interact | The window you type in | iTerm2 | Web |
-| **Lifecycle** | State management | The progress tracker | (built-in) | — |
+
+Note: **Lifecycle** is a built-in core component (the state machine), not a plugin slot. It handles reactions and session management internally.
 
 **Why this is cool:** You can swap any piece without changing the others! Want to use Docker instead of tmux? Just change the runtime. Everything else keeps working.
 
@@ -198,7 +199,7 @@ agent-orchestrator/              ← The whole house
 │   └── design/                         ← Design documents
 │
 ├── examples/                     ← Recipe book
-│   └── agent-orchestrator.yaml.examples
+│   └── *.yaml                    ← Example configurations
 │
 ├── agent-orchestrator.yaml      ← Settings (you create this)
 │
@@ -324,9 +325,11 @@ Every few seconds, the Lifecycle Manager checks:
 `agent-orchestrator.yaml` is like your personal preferences file:
 
 ```yaml
-# Where things are stored on your computer
-dataDir: ~/.agent-orchestrator
-worktreeDir: ~/.worktrees
+# Storage paths are now derived automatically from configPath using
+# hash-based namespacing; you do not need to set dataDir/worktreeDir.
+# The following keys are legacy and are ignored by current versions:
+# dataDir: ~/.agent-orchestrator    # legacy – ignored
+# worktreeDir: ~/.worktrees         # legacy – ignored
 
 # What port the web dashboard uses
 port: 3000
@@ -378,16 +381,15 @@ Agent Orchestrator uses a special naming system so everything stays organized:
 │
 └── a3b4c5d6e7f8-my-website/    ← Hash-based folder (prevents conflicts)
     │
-    ├── sessions/              ← Active sessions
-    │   ├── web-1              ← Session metadata
-    │   └── web-2
+    ├── sessions/               ← Active sessions
+    │   ├── web-1               ← Session metadata
+    │   ├── web-2
+    │   └── archive/            ← Completed sessions
+    │       └── web-3/
     │
-    ├── worktrees/             ← Git worktrees
-    │   ├── web-1/             ← Isolated code copy
-    │   └── web-2/
-    │
-    └── archive/               ← Completed sessions
-        └── web-3/
+    └── worktrees/              ← Git worktrees
+        ├── web-1/              ← Isolated code copy
+        └── web-2/
 ```
 
 The hash (`a3b4c5d6e7f8`) comes from your config folder - it means:
@@ -482,9 +484,31 @@ Implementation (Your Code): "Here's how I do it with tmux/Docker/K8s/etc"
 
 ### The Plugin Pattern
 
-Every plugin follows the same simple pattern:
+Every plugin follows the same simple pattern. Here's a simplified example for a Runtime plugin:
 
 ```typescript
+// (These interfaces mirror core types in a simplified way
+//  so this example will typecheck if copied into a real plugin.)
+interface RuntimeConfig {
+  sessionId: string;
+  workspacePath: string;
+  launchCommand: string;
+  // ... any other fields from the real RuntimeConfig
+}
+
+interface RuntimeHandle {
+  name: string;
+
+  // End the session associated with this runtime
+  destroy(): Promise<void>;
+
+  // Send text to a running session
+  send(text: string): Promise<void>;
+
+  // Check if a session is still running
+  isRunning(): Promise<boolean>;
+}
+
 // 1. Describe yourself
 export const manifest = {
   name: "my-plugin",           // Your name
@@ -494,29 +518,23 @@ export const manifest = {
 };
 
 // 2. Provide your implementation
-export function create(): Runtime {
+export async function create(config: RuntimeConfig): Promise<RuntimeHandle> {
+  // You can use config.sessionId, config.workspacePath, config.launchCommand, etc.
+
   return {
     name: "my-plugin",
 
-    // Start a new session
-    async create(config) {
-      // Do the work to start a session
-      return { sessionName: "..." };
+    async destroy() {
+      // Clean up any resources for this session
     },
 
-    // End a session
-    async destroy(sessionName) {
-      // Clean up
+    async send(text: string) {
+      // Send text to your runtime process
     },
 
-    // Send text to a running session
-    async send(sessionName, text) {
-      // Send the text
-    },
-
-    // Check if a session is still running
-    async isRunning(sessionName) {
-      return true; // or false
+    async isRunning() {
+      // Return true if the runtime/session is still alive
+      return false; // or true
     },
   };
 }
@@ -538,10 +556,14 @@ To add a new plugin to the system:
 
 3. **Create package.json** with proper dependencies
 
-4. **Register it** in `packages/core/src/plugin-registry.ts`
+4. **Register it** in `packages/core/src/plugin-registry.ts` by adding your package name to the `BUILTIN_PLUGINS` list
    ```typescript
-   import runtimeMynewruntime from "@composio/ao-runtime-mynewruntime";
-   // Add to the loadBuiltins() function
+   // In packages/core/src/plugin-registry.ts
+   const BUILTIN_PLUGINS = [
+     "@composio/ao-plugin-runtime-tmux",
+     "@composio/ao-plugin-runtime-mynewruntime", // <--- add your plugin here
+     // ...other built-in plugins
+   ];
    ```
 
 5. **Rebuild** and it's available!
@@ -623,7 +645,7 @@ To add a new plugin to the system:
 | **Worktree** | A linked copy of your repo | Git feature: shares history but has its own files |
 | **Lifecycle** | The state machine | Tracks session status and handles reactions |
 | **Reactions** | What happens when... | Automatic responses to events (CI failure, comments) |
-| **Notifer** | How you get alerts | Notification channel (desktop, Slack, webhook) |
+| **Notifier** | How you get alerts | Notification channel (desktop, Slack, webhook) |
 | **Manifest** | A plugin's ID card | Metadata describing a plugin |
 | **State** | Where something is in a process | Current status (spawning, working, done) |
 | **Activity** | What's happening now | Current action (active, idle, waiting) |
