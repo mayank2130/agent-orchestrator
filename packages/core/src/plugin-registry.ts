@@ -249,6 +249,35 @@ function extractPluginConfig(
   return undefined;
 }
 
+/**
+ * Decide whether a builtin should be skipped because config declares only
+ * external sources for all matching entries of the same slot:name.
+ */
+function shouldSkipBuiltinRegistration(
+  slot: PluginSlot,
+  name: string,
+  config: OrchestratorConfig,
+): boolean {
+  if (slot !== "notifier") return false;
+
+  let hasMatchingEntry = false;
+  for (const [notifierName, notifierConfig] of Object.entries(config.notifiers ?? {})) {
+    if (!notifierConfig || typeof notifierConfig !== "object") continue;
+    const nc = notifierConfig as Record<string, unknown>;
+    const configuredPlugin = nc["plugin"];
+    const hasExplicitPlugin = typeof configuredPlugin === "string" && configuredPlugin.length > 0;
+    const matches = hasExplicitPlugin ? configuredPlugin === name : notifierName === name;
+    if (!matches) continue;
+
+    hasMatchingEntry = true;
+    // If any matching entry is NOT external, builtin should still be registered.
+    if (!nc["package"] && !nc["path"]) return false;
+  }
+
+  // Skip only when there is at least one matching entry and all were external.
+  return hasMatchingEntry;
+}
+
 export function createPluginRegistry(): PluginRegistry {
   const plugins: PluginMap = new Map();
 
@@ -281,6 +310,13 @@ export function createPluginRegistry(): PluginRegistry {
     ): Promise<void> {
       const doImport = importFn ?? importModule;
       for (const builtin of BUILTIN_PLUGINS) {
+        if (
+          orchestratorConfig &&
+          shouldSkipBuiltinRegistration(builtin.slot, builtin.name, orchestratorConfig)
+        ) {
+          continue;
+        }
+
         try {
           const mod = (await doImport(builtin.pkg)) as PluginModule;
           if (mod.manifest && typeof mod.create === "function") {

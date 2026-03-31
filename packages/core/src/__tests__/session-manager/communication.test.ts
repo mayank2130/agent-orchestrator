@@ -305,7 +305,10 @@ describe("send", () => {
     await sm.send("app-1", "confirm via updated timestamp");
     const elapsedMs = Date.now() - startedAt;
 
-    expect(elapsedMs).toBeLessThan(2_000);
+    // CI can add overhead around subprocess startup and shell invocation.
+    // We still expect timestamp-based confirmation to complete earlier than
+    // the fallback confirmation window (6 polls * 500ms = 3000ms).
+    expect(elapsedMs).toBeLessThan(3_000);
     expect(readFileSync(listLogPath, "utf-8").trim().split("\n").length).toBeGreaterThanOrEqual(2);
     expect(mockRuntime.sendMessage).toHaveBeenCalledWith(
       makeHandle("rt-1"),

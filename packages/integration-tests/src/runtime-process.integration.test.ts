@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from "vitest";
 import processPlugin from "@composio/ao-plugin-runtime-process";
 import type { RuntimeHandle } from "@composio/ao-core";
-import { sleep } from "./helpers/polling.js";
+import { pollUntil, sleep } from "./helpers/polling.js";
 
 describe("runtime-process (integration)", () => {
   const runtime = processPlugin.create();
@@ -35,8 +35,13 @@ describe("runtime-process (integration)", () => {
 
   it("sendMessage writes to stdin and output is captured", async () => {
     await runtime.sendMessage(handle, "hello from test");
-    await sleep(200); // give time for stdout to be captured
-    const output = await runtime.getOutput(handle);
+    const output = await pollUntil(
+      async () => {
+        const current = await runtime.getOutput(handle);
+        return current.includes("hello from test") ? current : "";
+      },
+      { timeoutMs: 3_000, intervalMs: 100 },
+    );
     expect(output).toContain("hello from test");
   });
 

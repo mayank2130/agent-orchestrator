@@ -737,13 +737,14 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
     sessionsDir: string,
     effectiveAgentName: string,
     sessionListPromise?: Promise<OpenCodeSessionListEntry[]>,
+    discoveryTimeoutMs = OPENCODE_DISCOVERY_TIMEOUT_MS,
   ): Promise<void> {
     if (effectiveAgentName !== "opencode") return;
     if (asValidOpenCodeSessionId(session.metadata["opencodeSessionId"])) return;
 
     const discovered = await discoverOpenCodeSessionIdByTitle(
       sessionName,
-      OPENCODE_DISCOVERY_TIMEOUT_MS,
+      discoveryTimeoutMs,
       sessionListPromise,
     );
     if (!discovered) return;
@@ -797,6 +798,7 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
     effectiveAgentName: string,
     plugins: ReturnType<typeof resolvePlugins>,
     sessionListPromise?: Promise<OpenCodeSessionListEntry[]>,
+    mappingDiscoveryTimeoutMs = OPENCODE_DISCOVERY_TIMEOUT_MS,
   ): Promise<void> {
     await ensureOpenCodeSessionMapping(
       session,
@@ -804,6 +806,7 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
       sessionsDir,
       effectiveAgentName,
       sessionListPromise,
+      mappingDiscoveryTimeoutMs,
     );
 
     const tmuxNameFromMetadata = session.metadata["tmuxName"]?.trim();
@@ -1543,10 +1546,6 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
       const selection = resolveSelectionForSession(project, sessionId, repaired.raw);
       const effectiveAgentName = selection.agentName;
       const plugins = resolvePlugins(project, effectiveAgentName);
-      const sessionListPromise =
-        effectiveAgentName === "opencode"
-          ? fetchOpenCodeSessionList(OPENCODE_INTERACTIVE_DISCOVERY_TIMEOUT_MS)
-          : undefined;
       await ensureHandleAndEnrich(
         session,
         sessionId,
@@ -1554,7 +1553,8 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
         project,
         effectiveAgentName,
         plugins,
-        sessionListPromise,
+        undefined,
+        OPENCODE_INTERACTIVE_DISCOVERY_TIMEOUT_MS,
       );
 
       return session;

@@ -277,7 +277,8 @@ describe("loadBuiltins", () => {
       throw new Error(`Not found: ${pkg}`);
     });
 
-    expect(fakeDiscord.create).toHaveBeenCalledWith(undefined);
+    expect(fakeDiscord.create).not.toHaveBeenCalled();
+    expect(registry.get("notifier", "discord")).toBeNull();
   });
 
   it("does not pass external-intended config to builtin when entry declares a path", async () => {
@@ -298,7 +299,8 @@ describe("loadBuiltins", () => {
       throw new Error(`Not found: ${pkg}`);
     });
 
-    expect(fakeDiscord.create).toHaveBeenCalledWith(undefined);
+    expect(fakeDiscord.create).not.toHaveBeenCalled();
+    expect(registry.get("notifier", "discord")).toBeNull();
   });
 
   it("does not match notifier key when explicit plugin points to another notifier", async () => {
@@ -407,6 +409,42 @@ describe("loadFromConfig", () => {
     // Should have attempted to import builtin plugins via the provided importFn
     expect(importedPackages.length).toBeGreaterThan(0);
     expect(importedPackages).toContain("@composio/ao-plugin-runtime-tmux");
+  });
+
+  it("loads an external notifier that reuses a builtin name without conflicts", async () => {
+    const registry = createPluginRegistry();
+    const fakeExternalDiscord = makePlugin("notifier", "discord");
+    const config = makeOrchestratorConfig({
+      configPath: "/tmp/agent-orchestrator.yaml",
+      projects: {
+        proj1: {
+          name: "App",
+          path: "/repos/app",
+          repo: "org/app",
+          defaultBranch: "main",
+          sessionPrefix: "app",
+        },
+      },
+      notifiers: {
+        discord: {
+          plugin: "discord",
+          package: "@acme/ao-plugin-notifier-discord",
+          webhookUrl: "https://discord.com/api/webhooks/test",
+        },
+      },
+    });
+
+    await expect(
+      registry.loadFromConfig(config, async (pkg: string) => {
+        if (pkg === "@acme/ao-plugin-notifier-discord") return fakeExternalDiscord;
+        throw new Error(`Not found: ${pkg}`);
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(fakeExternalDiscord.create).toHaveBeenCalledWith({
+      webhookUrl: "https://discord.com/api/webhooks/test",
+    });
+    expect(registry.get("notifier", "discord")).not.toBeNull();
   });
 });
 
