@@ -1543,6 +1543,10 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
       const selection = resolveSelectionForSession(project, sessionId, repaired.raw);
       const effectiveAgentName = selection.agentName;
       const plugins = resolvePlugins(project, effectiveAgentName);
+      const sessionListPromise =
+        effectiveAgentName === "opencode"
+          ? fetchOpenCodeSessionList(OPENCODE_INTERACTIVE_DISCOVERY_TIMEOUT_MS)
+          : undefined;
       await ensureHandleAndEnrich(
         session,
         sessionId,
@@ -1550,6 +1554,7 @@ export function createSessionManager(deps: SessionManagerDeps): OpenCodeSessionM
         project,
         effectiveAgentName,
         plugins,
+        sessionListPromise,
       );
 
       return session;

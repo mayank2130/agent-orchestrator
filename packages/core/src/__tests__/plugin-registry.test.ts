@@ -418,9 +418,11 @@ describe("loadExternals", () => {
       configPath: "/tmp/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "jira",
             package: "@acme/ao-plugin-tracker-jira",
@@ -478,9 +480,11 @@ describe("loadExternals", () => {
       configPath: "/workspace/config/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "local-tracker",
             path: "./plugins/local-tracker.js",
@@ -505,9 +509,11 @@ describe("loadExternals", () => {
       configPath: "/workspace/config/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "home-tracker",
             path: "~/plugins/home-tracker.js",
@@ -537,18 +543,22 @@ describe("loadExternals", () => {
       configPath: "/tmp/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App One",
           path: "/repos/app-one",
           repo: "org/app-one",
           defaultBranch: "main",
+          sessionPrefix: "app1",
           tracker: {
             plugin: "jira",
             package: "@acme/ao-plugin-tracker-jira",
           },
         },
         proj2: {
+          name: "App Two",
           path: "/repos/app-two",
           repo: "org/app-two",
           defaultBranch: "main",
+          sessionPrefix: "app2",
           tracker: {
             plugin: "jira",
             path: "./plugins/jira.js",
@@ -569,9 +579,11 @@ describe("loadExternals", () => {
       configPath: "/tmp/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "github",
             package: "@acme/ao-plugin-tracker-github",
@@ -592,9 +604,11 @@ describe("loadExternals", () => {
       configPath: "/tmp/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "jira",
             package: "@acme/ao-plugin-tracker-jira",
@@ -618,9 +632,11 @@ describe("loadExternals", () => {
       configPath: "/tmp/agent-orchestrator.yaml",
       projects: {
         proj1: {
+          name: "App",
           path: "/repos/app",
           repo: "org/app",
           defaultBranch: "main",
+          sessionPrefix: "app",
           tracker: {
             plugin: "jira",
             package: "@acme/ao-plugin-tracker-jira",
