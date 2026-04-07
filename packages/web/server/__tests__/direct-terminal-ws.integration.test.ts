@@ -102,6 +102,14 @@ function waitForMarker(ws: WebSocket, marker: string, timeoutMs = 3000): Promise
   });
 }
 
+function getRepresentativePtySize(sessionId: string): { cols: number; rows: number } {
+  const session = terminal.activeSessions.get(sessionId);
+  if (!session) {
+    throw new Error(`No active session found for ${sessionId}`);
+  }
+  return { cols: session.pty.cols, rows: session.pty.rows };
+}
+
 // =============================================================================
 // Lifecycle
 // =============================================================================
@@ -417,6 +425,31 @@ describe("WebSocket terminal connection", () => {
     expect(output).toContain(marker);
 
     ws.close();
+  });
+
+  it("keeps the shared terminal sized to the largest connected viewer", async () => {
+    const desktopWs = await connectWs(TEST_SESSION);
+    await waitForWsData(desktopWs);
+
+    desktopWs.send(JSON.stringify({ type: "resize", cols: 120, rows: 40 }));
+    await new Promise((r) => setTimeout(r, 100));
+    expect(getRepresentativePtySize(TEST_SESSION)).toMatchObject({ cols: 120, rows: 40 });
+
+    const mobileWs = await connectWs(TEST_SESSION);
+    await waitForWsData(mobileWs);
+
+    mobileWs.send(JSON.stringify({ type: "resize", cols: 60, rows: 20 }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    expect(getRepresentativePtySize(TEST_SESSION)).toMatchObject({ cols: 120, rows: 40 });
+
+    const marker = `SHARED_RESIZE_${Date.now()}`;
+    desktopWs.send(`echo ${marker}\n`);
+    const output = await waitForMarker(desktopWs, marker);
+    expect(output).toContain(marker);
+
+    mobileWs.close();
+    desktopWs.close();
   });
 
   it("passes non-resize JSON as terminal input (not intercepted)", async () => {

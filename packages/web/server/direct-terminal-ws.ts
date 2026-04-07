@@ -31,7 +31,10 @@ import { findTmux, resolveTmuxSession, validateSessionId } from "./tmux-utils.js
 import { createObserverContext, inferProjectId } from "./terminal-observability.js";
 
 interface TerminalSession {
+  viewerId: string;
   sessionId: string;
+  cols: number;
+  rows: number;
   pty: IPty;
   ws: WebSocket;
 }
@@ -62,6 +65,7 @@ export interface DirectTerminalServer {
 export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalServer {
   const TMUX = tmuxPath ?? findTmux();
   const activeSessions = new Map<string, TerminalSession>();
+  const sessionViewers = new Map<string, Map<string, TerminalSession>>();
   const { config, observer } = createObserverContext("terminal-direct-websocket");
   const metrics: WebsocketHealthMetrics = {
     activeConnections: 0,
@@ -96,6 +100,50 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     server,
     path: "/ws",
   });
+
+  const getActiveViewerCount = (): number =>
+    Array.from(sessionViewers.values()).reduce((sum, viewers) => sum + viewers.size, 0);
+
+  const syncRepresentativeSession = (sessionId: string): void => {
+    const viewers = sessionViewers.get(sessionId);
+    if (!viewers || viewers.size === 0) {
+      sessionViewers.delete(sessionId);
+      activeSessions.delete(sessionId);
+      return;
+    }
+
+    const representative = viewers.values().next().value;
+    if (representative) {
+      activeSessions.set(sessionId, representative);
+    }
+  };
+
+  const getSharedSize = (sessionId: string): { cols: number; rows: number } => {
+    const viewers = sessionViewers.get(sessionId);
+    if (!viewers || viewers.size === 0) {
+      return { cols: 80, rows: 24 };
+    }
+
+    let cols = 80;
+    let rows = 24;
+    for (const viewer of viewers.values()) {
+      cols = Math.max(cols, viewer.cols);
+      rows = Math.max(rows, viewer.rows);
+    }
+    return { cols, rows };
+  };
+
+  const applySharedResize = (sessionId: string): void => {
+    const viewers = sessionViewers.get(sessionId);
+    if (!viewers || viewers.size === 0) {
+      return;
+    }
+
+    const { cols, rows } = getSharedSize(sessionId);
+    for (const viewer of viewers.values()) {
+      viewer.pty.resize(cols, rows);
+    }
+  };
 
   const recordWebsocketMetric = (input: {
     metric: "websocket_connect" | "websocket_disconnect" | "websocket_error";
@@ -171,6 +219,9 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
 
     console.log(`[DirectTerminal] New connection for session: ${tmuxSessionId}`);
 
+    const viewerId = createCorrelationId("viewer");
+    const initialSize = getSharedSize(sessionId);
+
     // Enable mouse mode for scrollback support
     const mouseProc = spawn(TMUX, ["set-option", "-t", tmuxSessionId, "mouse", "on"]);
     mouseProc.on("error", (err) => {
@@ -205,8 +256,8 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
 
       pty = ptySpawn(TMUX, ["attach-session", "-t", tmuxSessionId], {
         name: "xterm-256color",
-        cols: 80,
-        rows: 24,
+        cols: initialSize.cols,
+        rows: initialSize.rows,
         cwd: homeDir,
         env,
       });
@@ -227,11 +278,21 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
       return;
     }
 
-    const session: TerminalSession = { sessionId, pty, ws };
-    activeSessions.set(sessionId, session);
+    const session: TerminalSession = {
+      viewerId,
+      sessionId,
+      cols: initialSize.cols,
+      rows: initialSize.rows,
+      pty,
+      ws,
+    };
+    const viewers = sessionViewers.get(sessionId) ?? new Map<string, TerminalSession>();
+    viewers.set(viewerId, session);
+    sessionViewers.set(sessionId, viewers);
+    syncRepresentativeSession(sessionId);
 
     metrics.totalConnections += 1;
-    metrics.activeConnections = activeSessions.size;
+    metrics.activeConnections = getActiveViewerCount();
     metrics.lastConnectedAt = new Date().toISOString();
     recordWebsocketMetric({
       metric: "websocket_connect",
@@ -241,10 +302,23 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     });
 
     let disconnectRecorded = false;
+    const removeViewer = () => {
+      const currentViewers = sessionViewers.get(sessionId);
+      if (!currentViewers) return;
+      currentViewers.delete(viewerId);
+      if (currentViewers.size === 0) {
+        sessionViewers.delete(sessionId);
+        activeSessions.delete(sessionId);
+        return;
+      }
+      syncRepresentativeSession(sessionId);
+      applySharedResize(sessionId);
+    };
+
     const recordDisconnect = (outcome: "success" | "failure", reason: string) => {
       if (disconnectRecorded) return;
       disconnectRecorded = true;
-      const activeConnections = activeSessions.size;
+      const activeConnections = getActiveViewerCount();
       metrics.activeConnections = activeConnections;
       metrics.totalDisconnects += 1;
       metrics.lastDisconnectedAt = new Date().toISOString();
@@ -268,11 +342,7 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     // PTY exit
     pty.onExit(({ exitCode }) => {
       console.log(`[DirectTerminal] PTY exited for ${sessionId} with code ${exitCode}`);
-      // Guard against stale exits: only delete if this pty is still the active one.
-      // A new connection may have already replaced this session entry.
-      if (activeSessions.get(sessionId)?.pty === pty) {
-        activeSessions.delete(sessionId);
-      }
+      removeViewer();
       recordDisconnect(exitCode === 0 ? "success" : "failure", `pty_exit:${exitCode}`);
       if (ws.readyState === WebSocket.OPEN) {
         ws.close(1000, "Terminal session ended");
@@ -288,7 +358,9 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
         try {
           const parsed = JSON.parse(message) as { type?: string; cols?: number; rows?: number };
           if (parsed.type === "resize" && parsed.cols && parsed.rows) {
-            pty.resize(parsed.cols, parsed.rows);
+            session.cols = parsed.cols;
+            session.rows = parsed.rows;
+            applySharedResize(sessionId);
             return;
           }
         } catch {
@@ -303,10 +375,7 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     // WebSocket close
     ws.on("close", () => {
       console.log(`[DirectTerminal] WebSocket closed for ${sessionId}`);
-      // Guard against stale closes replacing a newer session's entry
-      if (activeSessions.get(sessionId)?.pty === pty) {
-        activeSessions.delete(sessionId);
-      }
+      removeViewer();
       recordDisconnect("success", "ws_close");
       pty.kill();
     });
@@ -314,10 +383,7 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     // WebSocket error
     ws.on("error", (err) => {
       console.error(`[DirectTerminal] WebSocket error for ${sessionId}:`, err.message);
-      // Guard against stale error handlers replacing a newer session's entry
-      if (activeSessions.get(sessionId)?.pty === pty) {
-        activeSessions.delete(sessionId);
-      }
+      removeViewer();
       recordDisconnect("failure", `ws_error:${err.message}`);
       metrics.totalErrors += 1;
       metrics.lastErrorAt = new Date().toISOString();
@@ -333,10 +399,14 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
   });
 
   function shutdown() {
-    for (const [, session] of activeSessions) {
-      session.pty.kill();
-      session.ws.close(1001, "Server shutting down");
+    for (const viewers of sessionViewers.values()) {
+      for (const session of viewers.values()) {
+        session.pty.kill();
+        session.ws.close(1001, "Server shutting down");
+      }
     }
+    sessionViewers.clear();
+    activeSessions.clear();
     server.close();
   }
 
