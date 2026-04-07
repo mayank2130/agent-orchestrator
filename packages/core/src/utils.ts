@@ -5,14 +5,9 @@
 import { open, stat } from "node:fs/promises";
 import type { OrchestratorConfig } from "./types.js";
 
-/**
- * Framing prefix for out-of-band control messages sent over the direct
- * terminal WebSocket. The server embeds this before a JSON payload; the
- * client strips it and dispatches the control frame instead of writing
- * the bytes to xterm. Must match exactly on both sides — single source
- * of truth here prevents silent protocol divergence.
- */
-export const DIRECT_TERMINAL_CONTROL_PREFIX = "\0__AO_TERM__";
+// Re-export from the client-safe constants module so existing consumers
+// that import from utils.js or the barrel (@composio/ao-core) keep working.
+export { DIRECT_TERMINAL_CONTROL_PREFIX } from "./constants.js";
 
 /**
  * POSIX-safe shell escaping: wraps value in single quotes,

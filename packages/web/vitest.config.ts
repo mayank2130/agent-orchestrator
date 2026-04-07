@@ -17,6 +17,7 @@ export default defineConfig({
   },
   resolve: {
     alias: [
+      { find: "@composio/ao-core/constants", replacement: resolve(__dirname, "../core/src/constants.ts") },
       { find: "@composio/ao-core/types", replacement: resolve(__dirname, "../core/src/types.ts") },
       {
         find: "@composio/ao-core",

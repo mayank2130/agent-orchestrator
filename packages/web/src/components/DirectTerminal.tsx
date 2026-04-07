@@ -12,10 +12,10 @@ import "xterm/css/xterm.css";
 import type { ITheme, Terminal as TerminalType } from "xterm";
 import type { FitAddon as FitAddonType } from "@xterm/addon-fit";
 
-// Kept in sync with packages/core/src/utils.ts — must not import from
-// @composio/ao-core here because the core barrel re-exports server-only
-// modules (tmux.js → node:child_process) that Webpack cannot bundle.
-const DIRECT_TERMINAL_CONTROL_PREFIX = "\0__AO_TERM__";
+// Import from the client-safe sub-path export — no Node.js dependencies.
+// The barrel (@composio/ao-core) re-exports server-only modules that
+// Webpack cannot bundle, so we use the dedicated constants entry point.
+import { DIRECT_TERMINAL_CONTROL_PREFIX } from "@composio/ao-core/constants";
 export { DIRECT_TERMINAL_CONTROL_PREFIX };
 
 interface DirectTerminalProps {
