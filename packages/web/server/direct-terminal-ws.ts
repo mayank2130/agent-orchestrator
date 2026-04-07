@@ -55,6 +55,7 @@ export interface DirectTerminalServer {
   server: Server;
   wss: WebSocketServer;
   activeSessions: Map<string, TerminalSession>;
+  sessionViewers: Map<string, Map<string, TerminalSession>>;
   shutdown: () => void;
 }
 
@@ -141,7 +142,12 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
 
     const { cols, rows } = getSharedSize(sessionId);
     for (const viewer of viewers.values()) {
-      viewer.pty.resize(cols, rows);
+      try {
+        viewer.pty.resize(cols, rows);
+      } catch {
+        // PTY already exited (EBADF) — skip; the onExit handler will clean up.
+        continue;
+      }
       if (viewer.ws.readyState === WebSocket.OPEN) {
         viewer.ws.send(
           `${DIRECT_TERMINAL_CONTROL_PREFIX}${JSON.stringify({
@@ -428,7 +434,7 @@ export function createDirectTerminalServer(tmuxPath?: string): DirectTerminalSer
     server.close();
   }
 
-  return { server, wss, activeSessions, shutdown };
+  return { server, wss, activeSessions, sessionViewers, shutdown };
 }
 
 // --- Run as standalone script ---

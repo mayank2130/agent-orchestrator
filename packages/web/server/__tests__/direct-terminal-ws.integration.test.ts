@@ -131,11 +131,17 @@ beforeAll(() => {
 });
 
 afterEach(() => {
-  // Clean up any active sessions from tests
-  for (const [, session] of terminal.activeSessions) {
-    session.pty.kill();
-    session.ws.close();
+  // Clean up ALL viewers, not just the representative in activeSessions.
+  // Mirrors shutdown() to avoid leaked PTYs from multi-viewer tests and
+  // prevents async removeViewer → syncRepresentativeSession from
+  // repopulating activeSessions after clear().
+  for (const viewers of terminal.sessionViewers.values()) {
+    for (const session of viewers.values()) {
+      session.pty.kill();
+      session.ws.close();
+    }
   }
+  terminal.sessionViewers.clear();
   terminal.activeSessions.clear();
 });
 
@@ -450,6 +456,37 @@ describe("WebSocket terminal connection", () => {
 
     mobileWs.close();
     desktopWs.close();
+  });
+
+  it("survives a resize when one viewer's PTY has already exited", async () => {
+    const ws1 = await connectWs(TEST_SESSION);
+    await waitForWsData(ws1);
+
+    const ws2 = await connectWs(TEST_SESSION);
+    await waitForWsData(ws2);
+
+    // Simulate the race: kill ws1's PTY before ws2 sends a resize.
+    // The dead PTY's resize() would throw EBADF without the try-catch guard.
+    const sessions = Array.from(terminal.activeSessions.values());
+    const victimPty = sessions.find((s) => s.ws !== ws2)?.pty;
+    if (victimPty) {
+      victimPty.kill();
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    // This resize triggers applySharedResize which iterates all viewers —
+    // must not throw even though one PTY is dead.
+    ws2.send(JSON.stringify({ type: "resize", cols: 100, rows: 30 }));
+    await new Promise((r) => setTimeout(r, 100));
+
+    // The surviving viewer should still be functional.
+    const marker = `RESIZE_RACE_${Date.now()}`;
+    ws2.send(`echo ${marker}\n`);
+    const output = await waitForMarker(ws2, marker);
+    expect(output).toContain(marker);
+
+    ws1.close();
+    ws2.close();
   });
 
   it("passes non-resize JSON as terminal input (not intercepted)", async () => {
