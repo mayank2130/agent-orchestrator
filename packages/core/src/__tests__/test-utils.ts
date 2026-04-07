@@ -181,6 +181,7 @@ export function createMockRegistry(plugins: RegistryPlugins, options: { strict?:
     }),
     list: vi.fn().mockReturnValue([]),
     loadBuiltins: vi.fn(),
+    loadExternals: vi.fn(),
     loadFromConfig: vi.fn(),
   };
 }
