@@ -34,28 +34,32 @@ async function checkPort(port: number): Promise<void> {
  */
 async function checkBuilt(webDir: string): Promise<void> {
   const isNpmInstall = isInstalledUnderNodeModules(webDir);
+  const buildHint = isNpmInstall
+    ? "Run: npm install -g @composio/ao@latest"
+    : "Run: pnpm build or ao start --rebuild";
   const corePkgDir = findPackageUp(webDir, "@composio", "ao-core");
   if (!corePkgDir) {
-    const hint = isNpmInstall
+    const dependencyHint = isNpmInstall
       ? "Run: npm install -g @composio/ao@latest"
       : "Run: pnpm install && pnpm build";
-    throw new Error(`Dependencies not installed. ${hint}`);
+    throw new Error(`Dependencies not installed. ${dependencyHint}`);
   }
   const coreEntry = resolve(corePkgDir, "dist", "index.js");
   if (!existsSync(coreEntry)) {
-    const hint = isNpmInstall
-      ? "Run: npm install -g @composio/ao@latest"
-      : "Run: pnpm build";
-    throw new Error(`Packages not built. ${hint}`);
+    throw new Error(`Packages not built. ${buildHint}`);
   }
 
   const webBuildId = resolve(webDir, ".next", "BUILD_ID");
   const startAllEntry = resolve(webDir, "dist-server", "start-all.js");
-  if (!existsSync(webBuildId) || !existsSync(startAllEntry)) {
-    const hint = isNpmInstall
-      ? "Run: npm install -g @composio/ao@latest"
-      : "Run: pnpm build";
-    throw new Error(`Packages not built. ${hint}`);
+  const webpackRuntimeEntry = resolve(webDir, ".next", "server", "webpack-runtime.js");
+  const vendorChunksDir = resolve(webDir, ".next", "server", "vendor-chunks");
+  if (
+    !existsSync(webBuildId) ||
+    !existsSync(startAllEntry) ||
+    !existsSync(webpackRuntimeEntry) ||
+    !existsSync(vendorChunksDir)
+  ) {
+    throw new Error(`Dashboard production artifacts are missing or incomplete. ${buildHint}`);
   }
 }
 
