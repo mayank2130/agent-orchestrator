@@ -65,8 +65,6 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
     return configHostname ?? extractHost(project.repo);
   }
 
-  const defaultHost = configHostname ?? "gitlab.com";
-
   return {
     name: "gitlab",
 
@@ -89,7 +87,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
 
     issueUrl(identifier: string, project: ProjectConfig): string {
       const num = identifier.replace(/^#/, "");
-      const host = extractHost(project.repo) ?? defaultHost;
+      const host = resolveHost(project) ?? "gitlab.com";
       return `${buildGitLabBaseUrl(host)}/${stripHost(project.repo)}/-/issues/${num}`;
     },
 

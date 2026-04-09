@@ -224,6 +224,14 @@ describe("tracker-gitlab plugin", () => {
       );
     });
 
+    it("prefers config host protocol when project.repo embeds the same bare hostname", () => {
+      const customTracker = create({ host: "http://gitlab.corp.com" });
+      const selfHostedProject = { ...project, repo: "gitlab.corp.com/org/repo" };
+      expect(customTracker.issueUrl("42", selfHostedProject)).toBe(
+        "http://gitlab.corp.com/org/repo/-/issues/42",
+      );
+    });
+
     it("does not treat dotted group name as hostname (only 2 segments)", () => {
       const dottedGroupProject = { ...project, repo: "my.company/repo" };
       expect(tracker.issueUrl("42", dottedGroupProject)).toBe(
