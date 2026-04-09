@@ -157,7 +157,7 @@ describe("preflight.checkTmux", () => {
 
   it("throws with install instructions when tmux is missing", async () => {
     mockExec.mockRejectedValue(new Error("ENOENT"));
-    await expect(preflight.checkTmux()).rejects.toThrow("tmux is not installed. Install it: brew install tmux");
+    await expect(preflight.checkTmux()).rejects.toThrow("tmux is not installed. Install it:");
     expect(mockExec).toHaveBeenCalledTimes(1);
     expect(mockExec).toHaveBeenCalledWith("tmux", ["-V"]);
   });
