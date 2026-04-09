@@ -22,7 +22,7 @@ export async function glab(args: string[], hostname?: string): Promise<string> {
     throw new Error(
       `glab ${commandArgs.slice(0, 3).join(" ")} failed: ${(err as Error).message}`,
       {
-      cause: err,
+        cause: err,
       },
     );
   }
