@@ -12,11 +12,15 @@ export function normalizeGitLabHostname(host: string): string {
 }
 
 export async function glab(args: string[], hostname?: string): Promise<string> {
-  if (hostname && args[0] === "api") {
-    args = [args[0], "--hostname", normalizeGitLabHostname(hostname), ...args.slice(1)];
-  }
+  const hasHost = typeof hostname === "string" && hostname.length > 0;
+  // Per-subprocess GLAB_HOST avoids mutating process.env (multi-project / concurrent calls)
+  // and works for all glab subcommands (only `glab api` supports --hostname as a flag).
+  const env = hasHost
+    ? { ...process.env, GLAB_HOST: normalizeGitLabHostname(hostname) }
+    : { ...process.env };
   try {
     const { stdout } = await execFileAsync("glab", args, {
+      env,
       maxBuffer: 10 * 1024 * 1024,
       timeout: 30_000,
     });

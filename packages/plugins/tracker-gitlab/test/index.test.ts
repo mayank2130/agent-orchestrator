@@ -79,9 +79,26 @@ describe("tracker-gitlab plugin", () => {
       expect(tracker.name).toBe("gitlab");
     });
 
-    it("stores bare hostname in GLAB_HOST when protocol is provided", () => {
+    it("does not mutate process.env.GLAB_HOST", () => {
+      const before = process.env.GLAB_HOST;
       create({ host: "https://gitlab.internal.corp" });
-      expect(process.env.GLAB_HOST).toBe("gitlab.internal.corp");
+      expect(process.env.GLAB_HOST).toBe(before);
+    });
+
+    it("sets GLAB_HOST in subprocess env from config host", async () => {
+      mockGlab(sampleIssue);
+      const t = create({ host: "https://gitlab.internal.corp" });
+      await t.getIssue("123", project);
+      const opts = glabMock.mock.calls[0][2] as { env?: NodeJS.ProcessEnv };
+      expect(opts.env?.GLAB_HOST).toBe("gitlab.internal.corp");
+    });
+
+    it("sets GLAB_HOST from project.repo when config host is unset", async () => {
+      mockGlab(sampleIssue);
+      const selfHostedProject = { ...project, repo: "gitlab.corp.com/org/repo" };
+      await tracker.getIssue("123", selfHostedProject);
+      const opts = glabMock.mock.calls[0][2] as { env?: NodeJS.ProcessEnv };
+      expect(opts.env?.GLAB_HOST).toBe("gitlab.corp.com");
     });
   });
 

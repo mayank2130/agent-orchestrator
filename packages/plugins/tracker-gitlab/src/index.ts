@@ -14,13 +14,7 @@ import type {
   ProjectConfig,
 } from "@aoagents/ao-core";
 
-import {
-  glab,
-  normalizeGitLabHostname,
-  parseJSON,
-  extractHost,
-  stripHost,
-} from "@composio/ao-plugin-scm-gitlab/glab-utils";
+import { glab, parseJSON, extractHost, stripHost } from "@composio/ao-plugin-scm-gitlab/glab-utils";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -64,13 +58,14 @@ function parseIssueIdentifierFromUrl(url: string): string | null {
 // ---------------------------------------------------------------------------
 
 function createGitLabTracker(config?: Record<string, unknown>): Tracker {
-  const hostname = typeof config?.host === "string" ? config.host : undefined;
+  const configHostname = typeof config?.host === "string" ? config.host : undefined;
 
-  // For self-hosted GitLab, set GLAB_HOST env var so all glab commands work
-  if (hostname) {
-    process.env.GLAB_HOST = normalizeGitLabHostname(hostname);
+  /** Host for glab: YAML host, else hostname embedded in project.repo (self-hosted path). */
+  function resolveHost(project: ProjectConfig): string | undefined {
+    return configHostname ?? extractHost(project.repo);
   }
-  const defaultHost = hostname ?? "gitlab.com";
+
+  const defaultHost = configHostname ?? "gitlab.com";
 
   return {
     name: "gitlab",
@@ -78,7 +73,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
     async getIssue(identifier: string, project: ProjectConfig): Promise<Issue> {
       const raw = await glab(
         ["issue", "view", identifier, "--repo", project.repo, "-F", "json"],
-        hostname,
+        resolveHost(project),
       );
       return toIssue(parseJSON<GitLabIssueData>(raw, `getIssue for issue ${identifier}`));
     },
@@ -86,7 +81,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
     async isCompleted(identifier: string, project: ProjectConfig): Promise<boolean> {
       const raw = await glab(
         ["issue", "view", identifier, "--repo", project.repo, "-F", "json"],
-        hostname,
+        resolveHost(project),
       );
       const data = parseJSON<{ state: string }>(raw, `isCompleted for issue ${identifier}`);
       return data.state.toLowerCase() === "closed";
@@ -162,7 +157,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
         args.push("--assignee", filters.assignee);
       }
 
-      const raw = await glab(args, hostname);
+      const raw = await glab(args, resolveHost(project));
       const issues = parseJSON<GitLabIssueData[]>(raw, "listIssues");
       return issues.map(toIssue);
     },
@@ -173,9 +168,9 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
       project: ProjectConfig,
     ): Promise<void> {
       if (update.state === "closed") {
-        await glab(["issue", "close", identifier, "--repo", project.repo], hostname);
+        await glab(["issue", "close", identifier, "--repo", project.repo], resolveHost(project));
       } else if (update.state === "open") {
-        await glab(["issue", "reopen", identifier, "--repo", project.repo], hostname);
+        await glab(["issue", "reopen", identifier, "--repo", project.repo], resolveHost(project));
       }
 
       if (update.labels && update.labels.length > 0) {
@@ -189,7 +184,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
             "--label",
             update.labels.join(","),
           ],
-          hostname,
+          resolveHost(project),
         );
       }
 
@@ -204,14 +199,14 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
             "--unlabel",
             update.removeLabels.join(","),
           ],
-          hostname,
+          resolveHost(project),
         );
       }
 
       if (update.comment) {
         await glab(
           ["issue", "note", identifier, "--repo", project.repo, "-m", update.comment],
-          hostname,
+          resolveHost(project),
         );
       }
     },
@@ -236,7 +231,7 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
         args.push("--assignee", input.assignee);
       }
 
-      const url = await glab(args, hostname);
+      const url = await glab(args, resolveHost(project));
 
       const issueId = parseIssueIdentifierFromUrl(url);
       if (!issueId) {

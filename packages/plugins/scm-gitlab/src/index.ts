@@ -32,7 +32,7 @@ import {
   parseWebhookTimestamp,
 } from "@aoagents/ao-core/scm-webhook-utils";
 
-import { glab, normalizeGitLabHostname, parseJSON, stripHost } from "./glab-utils.js";
+import { glab, parseJSON, stripHost } from "./glab-utils.js";
 
 const BOT_AUTHORS = new Set([
   "gitlab-bot",
@@ -378,11 +378,6 @@ async function fetchDiscussions(
 
 function createGitLabSCM(config?: Record<string, unknown>): SCM {
   const configHostname = typeof config?.host === "string" ? config.host : undefined;
-
-  // For self-hosted GitLab, set GLAB_HOST env var so all glab commands work
-  if (configHostname) {
-    process.env.GLAB_HOST = normalizeGitLabHostname(configHostname);
-  }
 
   function resolveHostname(pr?: PRInfo): string | undefined {
     return configHostname ?? (pr ? extractHostFromOwner(pr.owner) : undefined);
