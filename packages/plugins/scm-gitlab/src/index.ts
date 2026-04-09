@@ -385,8 +385,6 @@ function createGitLabSCM(config?: Record<string, unknown>): SCM {
       ? configHostname
       : `http://${configHostname}`;
     process.env.GLAB_HOST = fullHost;
-    console.log(`[gitlab-scm] Set GLAB_HOST=${fullHost}`);
-    console.log(`[gitlab-scm] Using configured hostname: ${configHostname}`);
   }
 
   function resolveHostname(pr?: PRInfo): string | undefined {
