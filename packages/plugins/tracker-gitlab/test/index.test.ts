@@ -170,6 +170,20 @@ describe("tracker-gitlab plugin", () => {
       );
     });
 
+    it("uses http for localhost hosts", () => {
+      const customTracker = create({ host: "localhost:8080" });
+      expect(customTracker.issueUrl("42", project)).toBe(
+        "http://localhost:8080/acme/repo/-/issues/42",
+      );
+    });
+
+    it("preserves explicit host protocol", () => {
+      const customTracker = create({ host: "http://localhost:8080" });
+      expect(customTracker.issueUrl("42", project)).toBe(
+        "http://localhost:8080/acme/repo/-/issues/42",
+      );
+    });
+
     it("infers host from project.repo when config.host is unset", () => {
       const selfHostedProject = { ...project, repo: "gitlab.corp.com/org/repo" };
       expect(tracker.issueUrl("42", selfHostedProject)).toBe(
@@ -199,6 +213,12 @@ describe("tracker-gitlab plugin", () => {
     it("extracts issue number from GitLab URL", () => {
       expect(
         tracker.issueLabel!("https://gitlab.com/acme/repo/-/issues/42", project),
+      ).toBe("#42");
+    });
+
+    it("extracts issue number from GitLab work item URL", () => {
+      expect(
+        tracker.issueLabel!("http://gitlab.local/acme/repo/-/work_items/42", project),
       ).toBe("#42");
     });
 
@@ -368,14 +388,29 @@ describe("tracker-gitlab plugin", () => {
       );
     });
 
+    it("removes labels", async () => {
+      glabMock.mockResolvedValueOnce({ stdout: "" });
+      await tracker.updateIssue!("123", { removeLabels: ["working", "triage"] }, project);
+      expect(glabMock).toHaveBeenCalledWith(
+        "glab",
+        ["issue", "update", "123", "--repo", "acme/repo", "--unlabel", "working,triage"],
+        expect.any(Object),
+      );
+    });
+
     it("handles multiple updates in one call", async () => {
       glabMock.mockResolvedValue({ stdout: "" });
       await tracker.updateIssue!(
         "123",
-        { state: "closed", labels: ["done"], comment: "Done!" },
+        {
+          state: "closed",
+          labels: ["done"],
+          removeLabels: ["agent:backlog"],
+          comment: "Done!",
+        },
         project,
       );
-      expect(glabMock).toHaveBeenCalledTimes(3);
+      expect(glabMock).toHaveBeenCalledTimes(4);
     });
   });
 
@@ -422,6 +457,22 @@ describe("tracker-gitlab plugin", () => {
         expect.arrayContaining(["issue", "create", "--label", "bug", "--assignee", "alice"]),
         expect.any(Object),
       );
+    });
+
+    it("accepts work item URLs from local GitLab", async () => {
+      mockGlabRaw("http://gitlab.local/acme/repo/-/work_items/1001\n");
+      mockGlab({
+        iid: 1001,
+        title: "Task",
+        description: "",
+        web_url: "http://gitlab.local/acme/repo/-/work_items/1001",
+        state: "opened",
+        labels: [],
+        assignees: [],
+      });
+
+      const issue = await tracker.createIssue!({ title: "Task", description: "" }, project);
+      expect(issue).toMatchObject({ id: "1001", title: "Task", state: "open" });
     });
 
     it("throws when URL cannot be parsed from glab output", async () => {

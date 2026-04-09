@@ -1,9 +1,10 @@
-import type { Agent, OrchestratorConfig, PluginRegistry, SCM } from "@aoagents/ao-core";
-import claudeCodePlugin from "@aoagents/ao-plugin-agent-claude-code";
-import codexPlugin from "@aoagents/ao-plugin-agent-codex";
-import aiderPlugin from "@aoagents/ao-plugin-agent-aider";
-import opencodePlugin from "@aoagents/ao-plugin-agent-opencode";
-import githubSCMPlugin from "@aoagents/ao-plugin-scm-github";
+import type { Agent, OrchestratorConfig, PluginRegistry, SCM } from "@composio/ao-core";
+import claudeCodePlugin from "@composio/ao-plugin-agent-claude-code";
+import codexPlugin from "@composio/ao-plugin-agent-codex";
+import aiderPlugin from "@composio/ao-plugin-agent-aider";
+import opencodePlugin from "@composio/ao-plugin-agent-opencode";
+import githubSCMPlugin from "@composio/ao-plugin-scm-github";
+import gitlabSCMPlugin from "@composio/ao-plugin-scm-gitlab";
 
 const agentPlugins: Record<string, { create(): Agent }> = {
   "claude-code": claudeCodePlugin,
@@ -14,6 +15,7 @@ const agentPlugins: Record<string, { create(): Agent }> = {
 
 const scmPlugins: Record<string, { create(): SCM }> = {
   github: githubSCMPlugin,
+  gitlab: gitlabSCMPlugin,
 };
 
 /**

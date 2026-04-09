@@ -60,12 +60,15 @@ describe("preflight.checkBuilt", () => {
   });
 
   it("finds ao-core when hoisted one level up (npm global install layout)", async () => {
-    // /web/node_modules/@aoagents/ao-core     — miss
-    // /node_modules/@aoagents/ao-core         — hit
-    // /node_modules/@aoagents/ao-core/dist/index.js — exists
-    // /web/.next/BUILD_ID and /web/dist-server/start-all.js — exist
+    // /web/node_modules/@composio/ao-core     — miss
+    // /node_modules/@composio/ao-core         — hit
+    // /node_modules/@composio/ao-core/dist/index.js — exists
+    // /web/.next/BUILD_ID, /web/dist-server/start-all.js,
+    // /web/.next/server/webpack-runtime.js and vendor-chunks — exist
     mockExistsSync
       .mockReturnValueOnce(false)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(true)
@@ -104,7 +107,20 @@ describe("preflight.checkBuilt", () => {
       .mockReturnValueOnce(true)
       .mockReturnValueOnce(false);
     await expect(preflight.checkBuilt("/web")).rejects.toThrow(
-      "Packages not built",
+      "Dashboard production artifacts are missing or incomplete",
+    );
+  });
+
+  it("throws when vendor chunks are missing from the dashboard build", async () => {
+    mockExistsSync
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(true)
+      .mockReturnValueOnce(false);
+    await expect(preflight.checkBuilt("/web")).rejects.toThrow(
+      "Dashboard production artifacts are missing or incomplete",
     );
   });
 

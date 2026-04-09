@@ -42,6 +42,17 @@ function toIssue(data: GitLabIssueData): Issue {
   };
 }
 
+function buildGitLabBaseUrl(host: string): string {
+  if (/^https?:\/\//.test(host)) return host.replace(/\/+$/, "");
+  const protocol = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
+  return `${protocol}://${host}`;
+}
+
+function parseIssueIdentifierFromUrl(url: string): string | null {
+  const match = url.match(/\/-\/(?:issues|work_items)\/(\d+)(?:\/)?$/);
+  return match?.[1] ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Tracker implementation
 // ---------------------------------------------------------------------------
@@ -73,12 +84,12 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
     issueUrl(identifier: string, project: ProjectConfig): string {
       const num = identifier.replace(/^#/, "");
       const host = extractHost(project.repo) ?? defaultHost;
-      return `https://${host}/${stripHost(project.repo)}/-/issues/${num}`;
+      return `${buildGitLabBaseUrl(host)}/${stripHost(project.repo)}/-/issues/${num}`;
     },
 
     issueLabel(url: string, _project: ProjectConfig): string {
-      const match = url.match(/\/-\/issues\/(\d+)/);
-      if (match) return `#${match[1]}`;
+      const issueId = parseIssueIdentifierFromUrl(url);
+      if (issueId) return `#${issueId}`;
       const parts = url.split("/");
       const lastPart = parts[parts.length - 1];
       return lastPart ? `#${lastPart}` : url;
@@ -163,6 +174,21 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
         );
       }
 
+      if (update.removeLabels && update.removeLabels.length > 0) {
+        await glab(
+          [
+            "issue",
+            "update",
+            identifier,
+            "--repo",
+            project.repo,
+            "--unlabel",
+            update.removeLabels.join(","),
+          ],
+          hostname,
+        );
+      }
+
       if (update.comment) {
         await glab(
           ["issue", "note", identifier, "--repo", project.repo, "-m", update.comment],
@@ -193,12 +219,12 @@ function createGitLabTracker(config?: Record<string, unknown>): Tracker {
 
       const url = await glab(args, hostname);
 
-      const match = url.match(/\/-\/issues\/(\d+)/);
-      if (!match?.[1]) {
+      const issueId = parseIssueIdentifierFromUrl(url);
+      if (!issueId) {
         throw new Error(`Failed to parse issue URL from glab output: ${url}`);
       }
 
-      return this.getIssue(match[1], project);
+      return this.getIssue(issueId, project);
     },
   };
 }
