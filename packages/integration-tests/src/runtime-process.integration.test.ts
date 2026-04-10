@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
-import processPlugin from "@composio/ao-plugin-runtime-process";
-import type { RuntimeHandle } from "@composio/ao-core";
+import processPlugin from "@aoagents/ao-plugin-runtime-process";
+import type { RuntimeHandle } from "@aoagents/ao-core";
 import { pollUntil, sleep } from "./helpers/polling.js";
 
 /** Echo stdin to stdout without libc pipe buffering (unlike `cat`, which often block-buffers when stdout is not a TTY). */

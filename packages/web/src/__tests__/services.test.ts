@@ -63,16 +63,16 @@ vi.mock("@aoagents/ao-core", () => ({
   TERMINAL_STATUSES: new Set(["merged", "killed"]) as ReadonlySet<string>,
 }));
 
-vi.mock("@composio/ao-plugin-runtime-tmux", () => ({ default: tmuxPlugin }));
-vi.mock("@composio/ao-plugin-agent-claude-code", () => ({ default: claudePlugin }));
-vi.mock("@composio/ao-plugin-agent-codex", () => ({ default: codexPlugin }));
-vi.mock("@composio/ao-plugin-agent-opencode", () => ({ default: opencodePlugin }));
-vi.mock("@composio/ao-plugin-workspace-worktree", () => ({ default: worktreePlugin }));
-vi.mock("@composio/ao-plugin-scm-gitlab", () => ({ default: scmGitlabPlugin }));
-vi.mock("@composio/ao-plugin-scm-github", () => ({ default: scmGithubPlugin }));
-vi.mock("@composio/ao-plugin-tracker-gitlab", () => ({ default: trackerGitlabPlugin }));
-vi.mock("@composio/ao-plugin-tracker-github", () => ({ default: trackerGithubPlugin }));
-vi.mock("@composio/ao-plugin-tracker-linear", () => ({ default: trackerLinearPlugin }));
+vi.mock("@aoagents/ao-plugin-runtime-tmux", () => ({ default: tmuxPlugin }));
+vi.mock("@aoagents/ao-plugin-agent-claude-code", () => ({ default: claudePlugin }));
+vi.mock("@aoagents/ao-plugin-agent-codex", () => ({ default: codexPlugin }));
+vi.mock("@aoagents/ao-plugin-agent-opencode", () => ({ default: opencodePlugin }));
+vi.mock("@aoagents/ao-plugin-workspace-worktree", () => ({ default: worktreePlugin }));
+vi.mock("@aoagents/ao-plugin-scm-gitlab", () => ({ default: scmGitlabPlugin }));
+vi.mock("@aoagents/ao-plugin-scm-github", () => ({ default: scmGithubPlugin }));
+vi.mock("@aoagents/ao-plugin-tracker-gitlab", () => ({ default: trackerGitlabPlugin }));
+vi.mock("@aoagents/ao-plugin-tracker-github", () => ({ default: trackerGithubPlugin }));
+vi.mock("@aoagents/ao-plugin-tracker-linear", () => ({ default: trackerLinearPlugin }));
 
 describe("services", () => {
   beforeEach(() => {

@@ -2,17 +2,17 @@
 const nextConfig = {
   serverExternalPackages: ["@composio/core"],
   transpilePackages: [
-    "@composio/ao-core",
-    "@composio/ao-plugin-agent-claude-code",
-    "@composio/ao-plugin-agent-codex",
-    "@composio/ao-plugin-agent-opencode",
-    "@composio/ao-plugin-runtime-tmux",
-    "@composio/ao-plugin-scm-gitlab",
-    "@composio/ao-plugin-scm-github",
-    "@composio/ao-plugin-tracker-gitlab",
-    "@composio/ao-plugin-tracker-github",
-    "@composio/ao-plugin-tracker-linear",
-    "@composio/ao-plugin-workspace-worktree",
+    "@aoagents/ao-core",
+    "@aoagents/ao-plugin-agent-claude-code",
+    "@aoagents/ao-plugin-agent-codex",
+    "@aoagents/ao-plugin-agent-opencode",
+    "@aoagents/ao-plugin-runtime-tmux",
+    "@aoagents/ao-plugin-scm-gitlab",
+    "@aoagents/ao-plugin-scm-github",
+    "@aoagents/ao-plugin-tracker-gitlab",
+    "@aoagents/ao-plugin-tracker-github",
+    "@aoagents/ao-plugin-tracker-linear",
+    "@aoagents/ao-plugin-workspace-worktree",
   ],
   async headers() {
     return [

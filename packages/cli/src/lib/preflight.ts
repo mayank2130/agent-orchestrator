@@ -35,12 +35,12 @@ async function checkPort(port: number): Promise<void> {
 async function checkBuilt(webDir: string): Promise<void> {
   const isNpmInstall = isInstalledUnderNodeModules(webDir);
   const buildHint = isNpmInstall
-    ? "Run: npm install -g @composio/ao@latest"
+    ? "Run: npm install -g @aoagents/ao@latest"
     : "Run: pnpm build or ao start --rebuild";
-  const corePkgDir = findPackageUp(webDir, "@composio", "ao-core");
+  const corePkgDir = findPackageUp(webDir, "@aoagents", "ao-core");
   if (!corePkgDir) {
     const dependencyHint = isNpmInstall
-      ? "Run: npm install -g @composio/ao@latest"
+      ? "Run: npm install -g @aoagents/ao@latest"
       : "Run: pnpm install && pnpm build";
     throw new Error(`Dependencies not installed. ${dependencyHint}`);
   }

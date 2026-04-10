@@ -86,6 +86,9 @@ importers:
       '@aoagents/ao-plugin-scm-github':
         specifier: workspace:*
         version: link:../plugins/scm-github
+      '@aoagents/ao-plugin-scm-gitlab':
+        specifier: workspace:*
+        version: link:../plugins/scm-gitlab
       '@aoagents/ao-plugin-terminal-iterm2':
         specifier: workspace:*
         version: link:../plugins/terminal-iterm2
@@ -95,6 +98,9 @@ importers:
       '@aoagents/ao-plugin-tracker-github':
         specifier: workspace:*
         version: link:../plugins/tracker-github
+      '@aoagents/ao-plugin-tracker-gitlab':
+        specifier: workspace:*
+        version: link:../plugins/tracker-gitlab
       '@aoagents/ao-plugin-tracker-linear':
         specifier: workspace:*
         version: link:../plugins/tracker-linear
@@ -584,6 +590,9 @@ importers:
       '@aoagents/ao-plugin-agent-claude-code':
         specifier: workspace:*
         version: link:../plugins/agent-claude-code
+      '@aoagents/ao-plugin-agent-codex':
+        specifier: workspace:*
+        version: link:../plugins/agent-codex
       '@aoagents/ao-plugin-agent-opencode':
         specifier: workspace:*
         version: link:../plugins/agent-opencode
@@ -593,9 +602,15 @@ importers:
       '@aoagents/ao-plugin-scm-github':
         specifier: workspace:*
         version: link:../plugins/scm-github
+      '@aoagents/ao-plugin-scm-gitlab':
+        specifier: workspace:*
+        version: link:../plugins/scm-gitlab
       '@aoagents/ao-plugin-tracker-github':
         specifier: workspace:*
         version: link:../plugins/tracker-github
+      '@aoagents/ao-plugin-tracker-gitlab':
+        specifier: workspace:*
+        version: link:../plugins/tracker-gitlab
       '@aoagents/ao-plugin-tracker-linear':
         specifier: workspace:*
         version: link:../plugins/tracker-linear
