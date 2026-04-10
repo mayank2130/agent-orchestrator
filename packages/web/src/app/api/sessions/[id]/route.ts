@@ -33,7 +33,9 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       registry,
     ).catch(() => {});
 
-    // Enrich PR — serve cache immediately, refresh in background if stale.
+    // Enrich PR — serve cache immediately, block once on cold miss.
+    // PR state (open/merged, CI, reviews) is the primary thing users check on
+    // the detail page, so placeholder defaults would be actively misleading.
     if (coreSession.pr) {
       const project = resolveProject(coreSession, config.projects);
       const scm = getSCM(registry, project);
@@ -42,9 +44,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           cacheOnly: true,
         });
         if (!cached) {
-          void enrichSessionPR(sessionToDashboard(coreSession), scm, coreSession.pr).catch(
-            () => {},
-          );
+          await enrichSessionPR(dashboardSession, scm, coreSession.pr);
         }
       }
     }

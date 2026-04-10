@@ -10,7 +10,7 @@ import {
   type SCM,
   type Tracker,
   type ProjectConfig,
-} from "@composio/ao-core";
+} from "@aoagents/ao-core";
 import * as serialize from "@/lib/serialize";
 import { getSCM } from "@/lib/services";
 
@@ -393,7 +393,7 @@ describe("API Routes", () => {
   });
 
   describe("GET /api/sessions/[id]", () => {
-    it("returns the session without blocking on cold PR enrichment", async () => {
+    it("blocks on cold PR enrichment so PR state is always correct", async () => {
       const enrichFastSpy = vi
         .spyOn(serialize, "enrichSessionsMetadataFast")
         .mockResolvedValue(undefined);
@@ -403,7 +403,7 @@ describe("API Routes", () => {
       const enrichPRSpy = vi
         .spyOn(serialize, "enrichSessionPR")
         .mockResolvedValueOnce(false)
-        .mockImplementation(() => new Promise<boolean>(() => {}));
+        .mockResolvedValueOnce(true);
 
       const response = await sessionGET(
         makeRequest("http://localhost:3000/api/sessions/backend-7"),
@@ -414,7 +414,7 @@ describe("API Routes", () => {
       const data = await response.json();
       expect(data.id).toBe("backend-7");
       expect(enrichFastSpy).toHaveBeenCalled();
-      expect(enrichPRSpy).toHaveBeenCalled();
+      expect(enrichPRSpy).toHaveBeenCalledTimes(2);
 
       enrichFastSpy.mockRestore();
       enrichFullSpy.mockRestore();
